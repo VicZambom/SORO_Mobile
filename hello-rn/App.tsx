@@ -1,15 +1,13 @@
 // App.tsx
 import { StatusBar } from 'expo-status-bar';
-// Se você ver '<LoginScreen />' aqui em baixo, ESTÁ ERRADO.
-// O correto é importar o AppNavigator:
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { AuthProvider } from './src/context/AuthContext';
 
 export default function App() {
   return (
-    <>
+    <AuthProvider> 
       <StatusBar style="light" />
-      {/* O AppNavigator gerencia as telas */}
       <AppNavigator />
-    </>
+    </AuthProvider>
   );
 }
