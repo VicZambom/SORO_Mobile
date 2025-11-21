@@ -1,13 +1,13 @@
 // src/navigation/AppNavigator.tsx
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native'; 
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// Importando as telas
 import { LoginScreen } from '../screens/LoginScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
+import { useAuth } from '../context/AuthContext'; 
 
-// Definindo os tipos de rota (Boa prática TypeScript)
 export type RootStackParamList = {
   Login: undefined;
   Dashboard: undefined;
@@ -15,18 +15,33 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export const AppNavigator = () => {
+export const AppNavigator: React.FC = () => {
+  const { signed, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName="Login"
         screenOptions={{
-          headerShown: false, // Vamos usar nossos próprios headers com Tailwind
-          contentStyle: { backgroundColor: '#F8FAFC' } // Cor de fundo padrão
+          headerShown: false,
+          contentStyle: { backgroundColor: '#F8FAFC' }
         }}
       >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        {/* Renderização Condicional */}
+        {signed ? (
+          // Se estiver logado, SÓ existe o Dashboard (e telas internas dele)
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        ) : (
+          // Se NÃO estiver logado, SÓ existe o Login
+          <Stack.Screen name="Login" component={LoginScreen} />
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
