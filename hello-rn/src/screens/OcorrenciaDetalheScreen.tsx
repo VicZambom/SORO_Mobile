@@ -5,17 +5,26 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Clock, MapPin, AlertTriangle } from 'lucide-react-native';
 import tw from 'twrnc';
 
-// Componentes Requeridos (Kit Lego)
+// Componentes Requeridos
 import { ScreenWrapper } from '../components/ScreenWrapper'; 
 import { Header } from '../components/Header'; 
 import { Card } from '../components/Card'; 
 import { SuccessToast } from '../components/SuccessToast'; 
-import { ActionModal } from '../components/ActionModal'; // Certifique-se de que este caminho está correto
+import { ActionModal } from '../components/ActionModal'; 
+// NOVO IMPORT: Galeria de Mídias
+import { MediaGallery } from '../components/MediaGallery'; 
 
 import api from '../services/api'; 
 import { RootStackParamList, AppNavigationProp } from '../types/navigation'; 
 
-// --- 1. Tipagem ---
+// --- 1. Tipagem e Dados Mockados ---
+
+interface MediaItem { // Definição de MediaItem (necessário para a Galeria)
+    id: string;
+    type: 'photo' | 'video' | 'add';
+    url: string; 
+}
+
 interface OcorrenciaDetalhe {
     id: string;
     codigo: string;
@@ -35,7 +44,17 @@ interface OcorrenciaDetalhe {
 
 type OcorrenciaDetalheRouteProp = RouteProp<RootStackParamList, 'OcorrenciaDetalhe'>;
 
-// --- 2. Componentes Auxiliares de UI ---
+// --- DADOS DE MÍDIA MOCKADOS (5 ITENS como no protótipo) ---
+const mockMediaData: MediaItem[] = [
+    // Usando cores escuras e avermelhadas para simular as imagens do protótipo
+    { id: '1', type: 'photo', url: 'https://placehold.co/100x100/503d3c/503d3c.png' }, 
+    { id: '2', type: 'photo', url: 'https://placehold.co/100x100/503d3c/503d3c.png' }, 
+    { id: '3', type: 'video', url: 'https://placehold.co/100x100/000000/000000.png' }, 
+    { id: '4', type: 'photo', url: 'https://placehold.co/100x100/181a18/181a18.png' }, 
+    { id: '5', type: 'photo', url: 'https://placehold.co/100x100/181a18/181a18.png' }, 
+];
+
+// --- Componentes Auxiliares de UI (InfoBlock e TimelineItem - permanecem iguais) ---
 const InfoBlock: React.FC<{ title: string, value: string | number }> = ({ title, value }) => (
     <View style={tw`mb-3 w-1/2`}>
         <Text style={tw`text-xs font-semibold text-slate-500 uppercase`}>{title}</Text>
@@ -56,9 +75,10 @@ const TimelineItem: React.FC<{ hora: string, evento: string, viatura?: string, i
     </View>
 );
 
-// --- 3. TELA PRINCIPAL ---
+// --- TELA PRINCIPAL ---
 
 export const OcorrenciaDetalheScreen: React.FC = () => {
+    // ... (Estados da Ocorrência e Modais)
     const route = useRoute<OcorrenciaDetalheRouteProp>();
     const navigation = useNavigation<AppNavigationProp>();
     const { id } = route.params;
@@ -66,14 +86,13 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
     const [ocorrencia, setOcorrencia] = useState<OcorrenciaDetalhe | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('geral');
+    const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('midia'); // Iniciar na aba MÍDIA para testar
     
-    // ESTADOS PARA OS MODAIS
     const [isActionModalVisible, setIsActionModalVisible] = useState(false); 
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
-    
-    // Simulação de dados para o ID 1
+
+    // Dados Mockados de Detalhe (com `midias: 5` para combinar com o protótipo da galeria)
     const mockData: OcorrenciaDetalhe = {
         id: '1',
         codigo: '#AV-2023-091',
@@ -85,7 +104,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         enderecoNumero: 'N°450',
         enderecoDetalhe: 'Boa Viagem, Recife - PE',
         vitimas: 2,
-        midias: 2,
+        midias: mockMediaData.length, // 5
         status: 'EM ANDAMENTO',
         dataHoraOcorrencia: '14:35',
         linhaTempo: [
@@ -94,13 +113,13 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             { hora: '14:30', evento: 'Ocorrência Gerada' },
         ]
     };
-
+    
+    // ... (funções fetchDetalhes e handleFinalizarOcorrencia permanecem as mesmas)
+    
     const fetchDetalhes = async () => {
         try {
             setLoading(true);
             setError(null);
-            
-            // Simulação da chamada
             if (id === '1') { 
                 setOcorrencia(mockData);
             } else {
@@ -114,15 +133,13 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             setLoading(false);
         }
     };
-
+    
     const handleFinalizarOcorrencia = async () => {
         try {
             setIsFinalizing(true);
             await new Promise(resolve => setTimeout(resolve, 1500));
-            
             setShowSuccessToast(true);
             setOcorrencia(prev => prev ? { ...prev, status: 'FINALIZADA' } : null);
-            
         } catch (error) {
             Alert.alert('Erro', 'Não foi possível finalizar a ocorrência. Tente novamente.');
         } finally {
@@ -130,35 +147,32 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         }
     };
 
+    const handleAddMedia = () => {
+        // Ao clicar no botão 'Adicionar' da galeria, abre o ActionModal
+        setIsActionModalVisible(true);
+    };
+
+    const handleMediaPress = (item: MediaItem) => {
+        // Lógica para visualizar mídia (exceto o botão 'add')
+        if (item.type !== 'add') {
+             Alert.alert('Visualizar Mídia', `Visualizando ${item.type} com ID: ${item.id}`);
+        }
+    };
+
     const handleActionSelect = (action: 'tirarFoto' | 'gravarVideo' | 'coletarAssinatura' | 'registrarVitima') => {
         setIsActionModalVisible(false); // Fecha o modal após selecionar uma ação
-        switch (action) {
-            case 'tirarFoto':
-                Alert.alert('Ação', 'Abrir Câmera para Tirar Foto!');
-                break;
-            case 'gravarVideo':
-                Alert.alert('Ação', 'Abrir Câmera para Gravar Vídeo!');
-                break;
-            case 'coletarAssinatura':
-                Alert.alert('Ação', 'Abrir Tela de Coleta de Assinatura!');
-                break;
-            case 'registrarVitima':
-                Alert.alert('Ação', 'Abrir Tela de Registro de Vítima!');
-                break;
-            default:
-                break;
-        }
+        Alert.alert('Ação Selecionada', `Ação: ${action}`);
     };
 
     useEffect(() => {
         fetchDetalhes();
     }, [id]);
-    
-    // ... Renderização de Status (Loading / Erro) ...
-    if (loading) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center`}><ActivityIndicator size="large" color="#2563eb" /></View></ScreenWrapper>);}
-    if (error || !ocorrencia) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center px-4`}><AlertTriangle color="#ef4444" size={32} /><Text style={tw`text-lg font-semibold text-red-500 mt-4 text-center`}>{error || 'Ocorrência não encontrada.'}</Text></View></ScreenWrapper>);}
 
+    // --- RENDERIZAÇÃO DE CONTEÚDO (ATUALIZADO) ---
     const renderContent = () => {
+        // Ocorrência deve existir neste ponto
+        if (!ocorrencia) return null; 
+        
         switch (activeTab) {
             case 'geral':
                 return (
@@ -166,15 +180,15 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                         <Card style={tw`mb-4 p-4`}>
                             <Text style={tw`text-base font-bold text-slate-800 mb-4`}>Informações</Text>
                             <View style={tw`flex-row flex-wrap`}>
-                                <InfoBlock title="Natureza" value={ocorrencia!.natureza} />
-                                <InfoBlock title="Subgrupo" value={ocorrencia!.subgrupo} />
-                                <InfoBlock title="Formo" value={ocorrencia!.formoAviso} />
-                                <InfoBlock title="Nº do Aviso" value={ocorrencia!.numeroAviso} />
+                                <InfoBlock title="Natureza" value={ocorrencia.natureza} />
+                                <InfoBlock title="Subgrupo" value={ocorrencia.subgrupo} />
+                                <InfoBlock title="Formo" value={ocorrencia.formoAviso} />
+                                <InfoBlock title="Nº do Aviso" value={ocorrencia.numeroAviso} />
                             </View>
                         </Card>
                         <Card style={tw`mb-4 p-4`}>
                             <Text style={tw`text-base font-bold text-slate-800 mb-4`}>Linha do Tempo</Text>
-                            {ocorrencia!.linhaTempo.slice().reverse().map((item, index) => (
+                            {ocorrencia.linhaTempo.slice().reverse().map((item, index) => (
                                 <TimelineItem 
                                     key={index} 
                                     {...item} 
@@ -186,16 +200,19 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 );
             case 'midia':
                 return (
-                    <View style={tw`items-center justify-center py-10`}>
-                        <Text style={tw`text-slate-500`}>Aba MÍDIA: Aqui será exibida a galeria de fotos e vídeos.</Text>
-                        <Text style={tw`text-xl font-bold text-slate-900 mt-2`}>Total de Anexos: {ocorrencia!.midias}</Text>
-                    </View>
+                    // NOVO: Renderiza o componente MediaGallery
+                    <MediaGallery
+                        data={mockMediaData as MediaItem[]}
+                        onAddPress={handleAddMedia}
+                        onMediaPress={handleMediaPress}
+                        midiaCount={ocorrencia.midias} 
+                    />
                 );
             case 'vitimas':
                 return (
                     <View style={tw`items-center justify-center py-10`}>
                         <Text style={tw`text-slate-500`}>Aba VÍTIMAS: Aqui será feita a gestão das vítimas.</Text>
-                        <Text style={tw`text-4xl font-bold text-slate-900 mt-4`}>{ocorrencia!.vitimas}</Text>
+                        <Text style={tw`text-4xl font-bold text-slate-900 mt-4`}>{ocorrencia.vitimas}</Text>
                         <Text style={tw`text-slate-600`}>Vítimas Envolvidas</Text>
                     </View>
                 );
@@ -205,6 +222,13 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
     };
 
     // --- UI Final ---
+    // ... (o return principal permanece o mesmo, mas a aba 'midia' agora renderiza a galeria)
+    
+    // Removido o resto do código da UI para concisão. Certifique-se de manter o código de Loading/Error e o return principal.
+    
+    if (loading) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center`}><ActivityIndicator size="large" color="#2563eb" /></View></ScreenWrapper>);}
+    if (error || !ocorrencia) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center px-4`}><AlertTriangle color="#ef4444" size={32} /><Text style={tw`text-lg font-semibold text-red-500 mt-4 text-center`}>{error || 'Ocorrência não encontrada.'}</Text></View></ScreenWrapper>);}
+    
     const isFinished = ocorrencia.status === 'FINALIZADA';
     
     return (
@@ -215,8 +239,6 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 
                 {/* TOP BOX COM ENDEREÇO E STATUS */}
                 <View style={tw`bg-white px-4 py-4 rounded-xl shadow-lg border border-slate-100 mx-1`}>
-                    
-                    {/* Status e Código */}
                     <View style={tw`flex-row justify-between items-center mb-4`}>
                         <View style={tw`flex-row items-center`}>
                             <Clock size={16} color={isFinished ? "#10b981" : "#f97316"} style={tw`mr-2`} />
@@ -226,8 +248,6 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                         </View>
                         <Text style={tw`text-xs font-bold text-slate-500`}>{ocorrencia.codigo}</Text>
                     </View>
-                    
-                    {/* Endereço e Mapa Simulado */}
                     <View style={tw`flex-row justify-between items-start`}>
                         <View style={tw`flex-1 pr-4`}>
                             <Text style={tw`text-xl font-bold text-slate-900`}>
@@ -236,7 +256,6 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                             </Text>
                             <Text style={tw`text-sm text-slate-600 mt-1`}>{ocorrencia.enderecoDetalhe}</Text>
                         </View>
-                        
                         <View style={tw`w-16 h-16 bg-gray-200 rounded-lg items-center justify-center border border-gray-300`}>
                             <MapPin size={24} color="#0f172a" />
                         </View>
