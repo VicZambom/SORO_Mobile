@@ -5,7 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { LoginScreen } from '../screens/LoginScreen';
-import { DashboardScreen } from '../screens/DashboardScreen';
+import { DashboardScreen } from '../screens/MinhasOcorrenciasScreen';
 import { useAuth } from '../context/AuthContext'; 
 
 import { RootStackParamList } from '../types/navigation';
