@@ -10,7 +10,7 @@ import { Header } from '../components/Header';
 import { AppNavigationProp } from '../types/navigation'; 
 
 // --- SIMULAÇÃO DE COMPONENTES ---
-// Simulação de um componente Select (Substitua pelo seu componente Select real)
+// Simulação de um componente Select 
 const Select = ({ placeholder }: { placeholder: string }) => (
     <View style={tw`border border-gray-300 rounded-lg p-3 mb-4 bg-white flex-row justify-between items-center`}>
         <Text style={tw`text-slate-500`}>{placeholder}</Text>
@@ -18,7 +18,7 @@ const Select = ({ placeholder }: { placeholder: string }) => (
     </View>
 );
 
-// Componente para o indicador de progresso (Wizard)
+// Componente para o indicador de progresso
 const StepIndicator = ({ step, title, isActive }: { step: number, title: string, isActive: boolean }) => (
     <View style={tw`items-center mx-3`}>
         <View style={tw`w-6 h-6 rounded-full ${isActive ? 'bg-blue-800' : 'bg-gray-300'} items-center justify-center mb-1`}>

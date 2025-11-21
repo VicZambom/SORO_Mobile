@@ -3,7 +3,6 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
-// Tipagem do que vamos guardar do usuário
 interface User {
   id: string;
   name: string;
@@ -14,7 +13,7 @@ interface User {
 interface AuthContextData {
   signed: boolean;
   user: User | null;
-  loading: boolean; // Loading da verificação inicial
+  loading: boolean; 
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
 }
@@ -43,21 +42,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Função de Login 
   async function signIn(email: string, password: string) {
-    const response = await api.post('/login', {
-      email,
-      password,
-    });
+    try {
+      const response = await api.post('/api/v1/auth/login', { 
+        email,
+        password,
+      });
 
-    const { token, user } = response.data; 
+      const { token, user } = response.data; 
 
-    // Configura o token no Axios para as próximas requisições
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Configura o token no Axios para as próximas requisições
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-    // Salva no celular
-    await AsyncStorage.setItem('@SORO:user', JSON.stringify(user));
-    await AsyncStorage.setItem('@SORO:token', token);
+      // Salva no celular
+      await AsyncStorage.setItem('@SORO:user', JSON.stringify(user));
+      await AsyncStorage.setItem('@SORO:token', token);
 
-    setUser(user);
+      setUser(user);
+      
+    } catch (error: any) {
+      // Repassa o erro para a tela de Login tratar (exibir o Alert)
+      throw error;
+    }
   }
 
   // Função de Logout
