@@ -5,27 +5,43 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Clock, MapPin, AlertTriangle } from 'lucide-react-native';
 import tw from 'twrnc';
 
-// Componentes Requeridos (Kit Lego)
+// Componentes Requeridos
 import { ScreenWrapper } from '../components/ScreenWrapper'; 
 import { Header } from '../components/Header'; 
 import { Card } from '../components/Card'; 
-// REQUER CRIAÇÃO: Modais e Galeria
 import { SuccessToast } from '../components/SuccessToast'; 
 import { ActionModal } from '../components/ActionModal'; 
 import { MediaGallery } from '../components/MediaGallery'; 
 import { MediaViewerModal } from '../components/MediaViewerModal'; 
+// NOVO IMPORT: Lista de Vítimas
+import { VictimList } from '../components/VictimList'; 
 
 import api from '../services/api'; 
 import { RootStackParamList, AppNavigationProp } from '../types/navigation'; 
 
 // --- 1. Tipagem e Dados Mockados ---
 
-// Tipagem para os itens de mídia na galeria
+// Tipagem para os itens de mídia
 interface MediaItem { 
     id: string;
     type: 'photo' | 'video' | 'add';
     url: string; 
 }
+
+// Tipagem e MOCK para Vítimas
+interface Victim {
+    id: string;
+    name: string;
+    age: number;
+    gender: 'Masc.' | 'Fem.';
+    status: 'GRAVE' | 'LEVE' | 'ÓBITO';
+    destination: string;
+}
+
+const mockVictims: Victim[] = [
+    { id: 'v1', name: 'José da Silva', age: 45, gender: 'Masc.', status: 'GRAVE', destination: 'Hosp. da Restauração' },
+    { id: 'v2', name: 'Maria Oliveira', age: 32, gender: 'Fem.', status: 'LEVE', destination: 'Atendida e Liberada' },
+];
 
 // Tipagem para os dados da Ocorrência
 interface OcorrenciaDetalhe {
@@ -47,7 +63,7 @@ interface OcorrenciaDetalhe {
 
 type OcorrenciaDetalheRouteProp = RouteProp<RootStackParamList, 'OcorrenciaDetalhe'>;
 
-// --- DADOS DE MÍDIA MOCKADOS (5 ITENS para simular o protótipo) ---
+// --- DADOS DE MÍDIA MOCKADOS (5 ITENS) ---
 const mockMediaData: MediaItem[] = [
     { id: '1', type: 'photo', url: 'https://placehold.co/100x100/503d3c/503d3c.png' }, 
     { id: '2', type: 'photo', url: 'https://placehold.co/100x100/503d3c/503d3c.png' }, 
@@ -57,7 +73,7 @@ const mockMediaData: MediaItem[] = [
 ];
 
 
-// --- 2. Componentes Auxiliares de UI ---
+// --- 2. Componentes Auxiliares de UI (InfoBlock e TimelineItem) ---
 const InfoBlock: React.FC<{ title: string, value: string | number }> = ({ title, value }) => (
     <View style={tw`mb-3 w-1/2`}>
         <Text style={tw`text-xs font-semibold text-slate-500 uppercase`}>{title}</Text>
@@ -88,7 +104,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
     const [ocorrencia, setOcorrencia] = useState<OcorrenciaDetalhe | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('midia'); 
+    const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('vitimas'); // Iniciar na aba Vítimas para testar
     
     // ESTADOS DE CONTROLE DE MODAIS/AÇÕES
     const [isActionModalVisible, setIsActionModalVisible] = useState(false); 
@@ -99,7 +115,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
     const [isViewerModalVisible, setIsViewerModalVisible] = useState(false);
     const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null); 
     
-    // Dados Mockados de Detalhe 
+    // Dados Mockados de Detalhe (Atualizado para o número de vítimas correto: 2)
     const mockData: OcorrenciaDetalhe = {
         id: '1',
         codigo: '#AV-2023-091',
@@ -110,7 +126,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         enderecoRua: 'Rua dos Navegantes',
         enderecoNumero: 'N°450',
         enderecoDetalhe: 'Boa Viagem, Recife - PE',
-        vitimas: 2,
+        vitimas: mockVictims.length, // 2 vítimas registradas
         midias: mockMediaData.length, // 5 itens na galeria
         status: 'EM ANDAMENTO',
         dataHoraOcorrencia: '14:35',
@@ -125,7 +141,6 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            // Simulação da chamada API
             if (id === '1') { 
                 setOcorrencia(mockData);
             } else {
@@ -155,32 +170,32 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         }
     };
 
-    // Abre o Modal de Visualização de Mídia (MediaViewerModal)
     const handleMediaPress = (item: MediaItem) => {
-        // Garante que só tentamos visualizar itens que não são o botão 'add'
         if (item.type !== 'add') {
              setSelectedMedia(item); 
              setIsViewerModalVisible(true); 
         }
     };
     
-    // Lógica para deletar mídia (Mock)
     const handleDeleteMedia = () => {
         if (selectedMedia) {
              Alert.alert('Sucesso', `Mídia ${selectedMedia.id} excluída (Simulação).`);
-             setIsViewerModalVisible(false); // Fecha o modal
-             setSelectedMedia(null); // Limpa o estado
+             setIsViewerModalVisible(false);
+             setSelectedMedia(null);
         }
     };
     
-    // Lida com as ações do ActionModal
+    const handleEditVictim = (victim: Victim) => {
+        // Lógica de Edição para a vítima
+        Alert.alert('Ação', `Abrir formulário para editar a vítima: ${victim.name}`);
+    };
+    
     const handleActionSelect = (action: 'tirarFoto' | 'gravarVideo' | 'coletarAssinatura' | 'registrarVitima') => {
-        setIsActionModalVisible(false); // Fecha o modal
+        setIsActionModalVisible(false);
         Alert.alert('Ação Selecionada', `Ação: ${action}`);
     };
 
     const handleAddMedia = () => {
-        // Ao clicar no botão 'Adicionar' da galeria, abre o ActionModal
         setIsActionModalVisible(true);
     };
 
@@ -228,11 +243,12 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 );
             case 'vitimas':
                 return (
-                    <View style={tw`items-center justify-center py-10`}>
-                        <Text style={tw`text-slate-500`}>Aba VÍTIMAS: Aqui será feita a gestão das vítimas.</Text>
-                        <Text style={tw`text-4xl font-bold text-slate-900 mt-4`}>{ocorrencia.vitimas}</Text>
-                        <Text style={tw`text-slate-600`}>Vítimas Envolvidas</Text>
-                    </View>
+                    // NOVO: Renderiza a lista de vítimas
+                    <VictimList
+                        data={mockVictims} 
+                        onEditVictim={handleEditVictim} 
+                        totalVictims={ocorrencia.vitimas} 
+                    />
                 );
             default:
                 return null;
@@ -357,7 +373,6 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 <MediaViewerModal
                     isVisible={isViewerModalVisible}
                     mediaUrl={selectedMedia.url}
-                    // A CORREÇÃO ESTÁ AQUI: Asserção de tipo para garantir 'photo' | 'video'
                     mediaType={selectedMedia.type as 'photo' | 'video'} 
                     onClose={() => setIsViewerModalVisible(false)}
                     onDelete={handleDeleteMedia} 
