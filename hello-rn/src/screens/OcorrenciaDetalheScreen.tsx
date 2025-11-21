@@ -5,26 +5,29 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { Clock, MapPin, AlertTriangle } from 'lucide-react-native';
 import tw from 'twrnc';
 
-// Componentes Requeridos
+// Componentes Requeridos (Kit Lego)
 import { ScreenWrapper } from '../components/ScreenWrapper'; 
 import { Header } from '../components/Header'; 
 import { Card } from '../components/Card'; 
+// REQUER CRIAÇÃO: Modais e Galeria
 import { SuccessToast } from '../components/SuccessToast'; 
 import { ActionModal } from '../components/ActionModal'; 
-// NOVO IMPORT: Galeria de Mídias
 import { MediaGallery } from '../components/MediaGallery'; 
+import { MediaViewerModal } from '../components/MediaViewerModal'; 
 
 import api from '../services/api'; 
 import { RootStackParamList, AppNavigationProp } from '../types/navigation'; 
 
 // --- 1. Tipagem e Dados Mockados ---
 
-interface MediaItem { // Definição de MediaItem (necessário para a Galeria)
+// Tipagem para os itens de mídia na galeria
+interface MediaItem { 
     id: string;
     type: 'photo' | 'video' | 'add';
     url: string; 
 }
 
+// Tipagem para os dados da Ocorrência
 interface OcorrenciaDetalhe {
     id: string;
     codigo: string;
@@ -44,9 +47,8 @@ interface OcorrenciaDetalhe {
 
 type OcorrenciaDetalheRouteProp = RouteProp<RootStackParamList, 'OcorrenciaDetalhe'>;
 
-// --- DADOS DE MÍDIA MOCKADOS (5 ITENS como no protótipo) ---
+// --- DADOS DE MÍDIA MOCKADOS (5 ITENS para simular o protótipo) ---
 const mockMediaData: MediaItem[] = [
-    // Usando cores escuras e avermelhadas para simular as imagens do protótipo
     { id: '1', type: 'photo', url: 'https://placehold.co/100x100/503d3c/503d3c.png' }, 
     { id: '2', type: 'photo', url: 'https://placehold.co/100x100/503d3c/503d3c.png' }, 
     { id: '3', type: 'video', url: 'https://placehold.co/100x100/000000/000000.png' }, 
@@ -54,7 +56,8 @@ const mockMediaData: MediaItem[] = [
     { id: '5', type: 'photo', url: 'https://placehold.co/100x100/181a18/181a18.png' }, 
 ];
 
-// --- Componentes Auxiliares de UI (InfoBlock e TimelineItem - permanecem iguais) ---
+
+// --- 2. Componentes Auxiliares de UI ---
 const InfoBlock: React.FC<{ title: string, value: string | number }> = ({ title, value }) => (
     <View style={tw`mb-3 w-1/2`}>
         <Text style={tw`text-xs font-semibold text-slate-500 uppercase`}>{title}</Text>
@@ -75,10 +78,9 @@ const TimelineItem: React.FC<{ hora: string, evento: string, viatura?: string, i
     </View>
 );
 
-// --- TELA PRINCIPAL ---
+// --- 3. TELA PRINCIPAL: OcorrenciaDetalheScreen ---
 
 export const OcorrenciaDetalheScreen: React.FC = () => {
-    // ... (Estados da Ocorrência e Modais)
     const route = useRoute<OcorrenciaDetalheRouteProp>();
     const navigation = useNavigation<AppNavigationProp>();
     const { id } = route.params;
@@ -86,13 +88,18 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
     const [ocorrencia, setOcorrencia] = useState<OcorrenciaDetalhe | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('midia'); // Iniciar na aba MÍDIA para testar
+    const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('midia'); 
     
+    // ESTADOS DE CONTROLE DE MODAIS/AÇÕES
     const [isActionModalVisible, setIsActionModalVisible] = useState(false); 
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
-
-    // Dados Mockados de Detalhe (com `midias: 5` para combinar com o protótipo da galeria)
+    
+    // ESTADOS PARA O MediaViewerModal
+    const [isViewerModalVisible, setIsViewerModalVisible] = useState(false);
+    const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null); 
+    
+    // Dados Mockados de Detalhe 
     const mockData: OcorrenciaDetalhe = {
         id: '1',
         codigo: '#AV-2023-091',
@@ -104,7 +111,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         enderecoNumero: 'N°450',
         enderecoDetalhe: 'Boa Viagem, Recife - PE',
         vitimas: 2,
-        midias: mockMediaData.length, // 5
+        midias: mockMediaData.length, // 5 itens na galeria
         status: 'EM ANDAMENTO',
         dataHoraOcorrencia: '14:35',
         linhaTempo: [
@@ -113,13 +120,12 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             { hora: '14:30', evento: 'Ocorrência Gerada' },
         ]
     };
-    
-    // ... (funções fetchDetalhes e handleFinalizarOcorrencia permanecem as mesmas)
-    
+
     const fetchDetalhes = async () => {
         try {
             setLoading(true);
             setError(null);
+            // Simulação da chamada API
             if (id === '1') { 
                 setOcorrencia(mockData);
             } else {
@@ -133,13 +139,15 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             setLoading(false);
         }
     };
-    
+
     const handleFinalizarOcorrencia = async () => {
         try {
             setIsFinalizing(true);
             await new Promise(resolve => setTimeout(resolve, 1500));
+            
             setShowSuccessToast(true);
             setOcorrencia(prev => prev ? { ...prev, status: 'FINALIZADA' } : null);
+            
         } catch (error) {
             Alert.alert('Erro', 'Não foi possível finalizar a ocorrência. Tente novamente.');
         } finally {
@@ -147,30 +155,41 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         }
     };
 
+    // Abre o Modal de Visualização de Mídia (MediaViewerModal)
+    const handleMediaPress = (item: MediaItem) => {
+        // Garante que só tentamos visualizar itens que não são o botão 'add'
+        if (item.type !== 'add') {
+             setSelectedMedia(item); 
+             setIsViewerModalVisible(true); 
+        }
+    };
+    
+    // Lógica para deletar mídia (Mock)
+    const handleDeleteMedia = () => {
+        if (selectedMedia) {
+             Alert.alert('Sucesso', `Mídia ${selectedMedia.id} excluída (Simulação).`);
+             setIsViewerModalVisible(false); // Fecha o modal
+             setSelectedMedia(null); // Limpa o estado
+        }
+    };
+    
+    // Lida com as ações do ActionModal
+    const handleActionSelect = (action: 'tirarFoto' | 'gravarVideo' | 'coletarAssinatura' | 'registrarVitima') => {
+        setIsActionModalVisible(false); // Fecha o modal
+        Alert.alert('Ação Selecionada', `Ação: ${action}`);
+    };
+
     const handleAddMedia = () => {
         // Ao clicar no botão 'Adicionar' da galeria, abre o ActionModal
         setIsActionModalVisible(true);
     };
 
-    const handleMediaPress = (item: MediaItem) => {
-        // Lógica para visualizar mídia (exceto o botão 'add')
-        if (item.type !== 'add') {
-             Alert.alert('Visualizar Mídia', `Visualizando ${item.type} com ID: ${item.id}`);
-        }
-    };
-
-    const handleActionSelect = (action: 'tirarFoto' | 'gravarVideo' | 'coletarAssinatura' | 'registrarVitima') => {
-        setIsActionModalVisible(false); // Fecha o modal após selecionar uma ação
-        Alert.alert('Ação Selecionada', `Ação: ${action}`);
-    };
-
     useEffect(() => {
         fetchDetalhes();
     }, [id]);
-
-    // --- RENDERIZAÇÃO DE CONTEÚDO (ATUALIZADO) ---
+    
+    // --- RENDERIZAÇÃO DE CONTEÚDO DA ABA ---
     const renderContent = () => {
-        // Ocorrência deve existir neste ponto
         if (!ocorrencia) return null; 
         
         switch (activeTab) {
@@ -200,7 +219,6 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 );
             case 'midia':
                 return (
-                    // NOVO: Renderiza o componente MediaGallery
                     <MediaGallery
                         data={mockMediaData as MediaItem[]}
                         onAddPress={handleAddMedia}
@@ -221,10 +239,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         }
     };
 
-    // --- UI Final ---
-    // ... (o return principal permanece o mesmo, mas a aba 'midia' agora renderiza a galeria)
-    
-    // Removido o resto do código da UI para concisão. Certifique-se de manter o código de Loading/Error e o return principal.
+    // --- UI Principal ---
     
     if (loading) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center`}><ActivityIndicator size="large" color="#2563eb" /></View></ScreenWrapper>);}
     if (error || !ocorrencia) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center px-4`}><AlertTriangle color="#ef4444" size={32} /><Text style={tw`text-lg font-semibold text-red-500 mt-4 text-center`}>{error || 'Ocorrência não encontrada.'}</Text></View></ScreenWrapper>);}
@@ -237,8 +252,10 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             
             <ScrollView style={tw`flex-1 -mt-6`}>
                 
-                {/* TOP BOX COM ENDEREÇO E STATUS */}
+                {/* 1. TOP BOX COM ENDEREÇO E STATUS (Header Customizado) */}
                 <View style={tw`bg-white px-4 py-4 rounded-xl shadow-lg border border-slate-100 mx-1`}>
+                    
+                    {/* Status e Código */}
                     <View style={tw`flex-row justify-between items-center mb-4`}>
                         <View style={tw`flex-row items-center`}>
                             <Clock size={16} color={isFinished ? "#10b981" : "#f97316"} style={tw`mr-2`} />
@@ -248,6 +265,8 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                         </View>
                         <Text style={tw`text-xs font-bold text-slate-500`}>{ocorrencia.codigo}</Text>
                     </View>
+                    
+                    {/* Endereço e Mapa Simulado */}
                     <View style={tw`flex-row justify-between items-start`}>
                         <View style={tw`flex-1 pr-4`}>
                             <Text style={tw`text-xl font-bold text-slate-900`}>
@@ -256,13 +275,14 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                             </Text>
                             <Text style={tw`text-sm text-slate-600 mt-1`}>{ocorrencia.enderecoDetalhe}</Text>
                         </View>
+                        
                         <View style={tw`w-16 h-16 bg-gray-200 rounded-lg items-center justify-center border border-gray-300`}>
                             <MapPin size={24} color="#0f172a" />
                         </View>
                     </View>
                 </View>
 
-                {/* NAVEGAÇÃO DE ABAS (TABS) */}
+                {/* 2. NAVEGAÇÃO DE ABAS (TABS) */}
                 <View style={tw`flex-row justify-between border-b border-gray-200 mt-4 px-1`}>
                     {[
                         { key: 'geral', title: 'GERAL', count: null },
@@ -281,7 +301,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                     ))}
                 </View>
                 
-                {/* CONTEÚDO DA ABA */}
+                {/* 3. CONTEÚDO DA ABA */}
                 <View style={tw`mt-4 px-1`}>
                     {renderContent()}
                 </View>
@@ -316,19 +336,33 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 </TouchableOpacity>
             </View>
             
-            {/* Modal de Ações */}
+            {/* MODAIS (Renderizados no final para ficarem sobre a tela) */}
+            
+            {/* Modal de Ações (FAB) */}
             <ActionModal
                 isVisible={isActionModalVisible}
                 onClose={() => setIsActionModalVisible(false)}
                 onActionSelect={handleActionSelect}
             />
 
-            {/* Componente Toast de Sucesso */}
+            {/* Componente Toast de Sucesso (Finalizar Ocorrência) */}
             <SuccessToast
                 isVisible={showSuccessToast}
                 message="Ocorrência Finalizada com Sucesso!" 
                 onClose={() => setShowSuccessToast(false)} 
             />
+
+            {/* Modal de Visualização de Mídia (Clicar na miniatura) */}
+            {selectedMedia && (
+                <MediaViewerModal
+                    isVisible={isViewerModalVisible}
+                    mediaUrl={selectedMedia.url}
+                    // A CORREÇÃO ESTÁ AQUI: Asserção de tipo para garantir 'photo' | 'video'
+                    mediaType={selectedMedia.type as 'photo' | 'video'} 
+                    onClose={() => setIsViewerModalVisible(false)}
+                    onDelete={handleDeleteMedia} 
+                />
+            )}
 
         </ScreenWrapper>
     );
