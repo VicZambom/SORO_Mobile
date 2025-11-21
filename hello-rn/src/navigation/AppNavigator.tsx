@@ -8,10 +8,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { useAuth } from '../context/AuthContext'; 
 
-export type RootStackParamList = {
-  Login: undefined;
-  Dashboard: undefined;
-};
+import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
