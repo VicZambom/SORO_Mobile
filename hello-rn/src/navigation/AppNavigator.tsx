@@ -10,6 +10,13 @@ import { useAuth } from '../context/AuthContext';
 
 import { RootStackParamList } from '../types/navigation';
 
+// --- NOVAS TELAS IMPORTADAS ---
+// Caminho ajustado para onde você criou as telas:
+import { OcorrenciaListaScreen } from '../screens/OcorrenciaListaScreen'; 
+import { OcorrenciaDetalheScreen } from '../screens/OcorrenciaDetalheScreen'; // Assumindo pasta Ocorrencias
+import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
+import { RegistroVitimaScreen } from '../screens/RegistroVitimaScreen'; // NOVO: Tela de Registro de Vítima
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const AppNavigator: React.FC = () => {
@@ -33,8 +40,19 @@ export const AppNavigator: React.FC = () => {
       >
         {/* Renderização Condicional */}
         {signed ? (
-          // Se estiver logado, SÓ existe o Dashboard (e telas internas dele)
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          // Se estiver logado, renderizamos o Dashboard E TODAS as telas da aplicação
+          <React.Fragment>
+            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            
+            {/* ROTAS DA APLICAÇÃO (Matheus e Maíra) */}
+            <Stack.Screen name="OcorrenciaLista" component={OcorrenciaListaScreen} />
+            <Stack.Screen name="OcorrenciaDetalhe" component={OcorrenciaDetalheScreen} /> 
+            <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
+            
+            {/* ROTA DA NOVA VÍTIMA */}
+            <Stack.Screen name="RegistroVitima" component={RegistroVitimaScreen} />
+            
+          </React.Fragment>
         ) : (
           // Se NÃO estiver logado, SÓ existe o Login
           <Stack.Screen name="Login" component={LoginScreen} />
