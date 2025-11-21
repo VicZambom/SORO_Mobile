@@ -1,16 +1,16 @@
 // src/screens/Ocorrencias/OcorrenciaDetalheScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { Text, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'; // Adicionado useNavigation
-import { Clock, MapPin, AlertTriangle, BookOpen } from 'lucide-react-native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { Clock, MapPin, AlertTriangle } from 'lucide-react-native';
 import tw from 'twrnc';
 
 // Componentes Requeridos (Kit Lego)
 import { ScreenWrapper } from '../components/ScreenWrapper'; 
 import { Header } from '../components/Header'; 
 import { Card } from '../components/Card'; 
-// NOVO IMPORT: O Toast de Sucesso
 import { SuccessToast } from '../components/SuccessToast'; 
+import { ActionModal } from '../components/ActionModal'; // Certifique-se de que este caminho está correto
 
 import api from '../services/api'; 
 import { RootStackParamList, AppNavigationProp } from '../types/navigation'; 
@@ -28,7 +28,7 @@ interface OcorrenciaDetalhe {
     enderecoDetalhe: string; 
     vitimas: number;
     midias: number;
-    status: 'PENDENTE' | 'EM ANDAMENTO' | 'FINALIZADA'; // Adicionado FINALIZADA
+    status: 'PENDENTE' | 'EM ANDAMENTO' | 'FINALIZADA'; 
     dataHoraOcorrencia: string;
     linhaTempo: { hora: string; evento: string; viatura?: string }[];
 }
@@ -68,8 +68,8 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'geral' | 'midia' | 'vitimas'>('geral');
     
-    // NOVOS ESTADOS PARA O MODAL
-    const [isModalVisible, setIsModalVisible] = useState(false);
+    // ESTADOS PARA OS MODAIS
+    const [isActionModalVisible, setIsActionModalVisible] = useState(false); 
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
     
@@ -115,26 +115,13 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         }
     };
 
-    // NOVA FUNÇÃO: Lógica para Finalizar a Ocorrência
     const handleFinalizarOcorrencia = async () => {
-        // Você poderia adicionar um modal de confirmação antes deste bloco
-        
         try {
             setIsFinalizing(true);
-            // Simulação de chamada de API:
-            // await api.post(`/ocorrencias/${id}/finalizar`); 
-            
-            // Simulação de tempo de processamento
             await new Promise(resolve => setTimeout(resolve, 1500));
             
-            // 1. Exibe o Toast de sucesso
             setShowSuccessToast(true);
-            
-            // 2. Atualiza o status da ocorrência localmente para FINALIZADA (UI feedback)
             setOcorrencia(prev => prev ? { ...prev, status: 'FINALIZADA' } : null);
-            
-            // 3. (Opcional) Navegar de volta para a lista após o toast:
-            // setTimeout(() => navigation.goBack(), 3000); 
             
         } catch (error) {
             Alert.alert('Erro', 'Não foi possível finalizar a ocorrência. Tente novamente.');
@@ -143,18 +130,35 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
         }
     };
 
+    const handleActionSelect = (action: 'tirarFoto' | 'gravarVideo' | 'coletarAssinatura' | 'registrarVitima') => {
+        setIsActionModalVisible(false); // Fecha o modal após selecionar uma ação
+        switch (action) {
+            case 'tirarFoto':
+                Alert.alert('Ação', 'Abrir Câmera para Tirar Foto!');
+                break;
+            case 'gravarVideo':
+                Alert.alert('Ação', 'Abrir Câmera para Gravar Vídeo!');
+                break;
+            case 'coletarAssinatura':
+                Alert.alert('Ação', 'Abrir Tela de Coleta de Assinatura!');
+                break;
+            case 'registrarVitima':
+                Alert.alert('Ação', 'Abrir Tela de Registro de Vítima!');
+                break;
+            default:
+                break;
+        }
+    };
+
     useEffect(() => {
         fetchDetalhes();
     }, [id]);
     
     // ... Renderização de Status (Loading / Erro) ...
-
     if (loading) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center`}><ActivityIndicator size="large" color="#2563eb" /></View></ScreenWrapper>);}
     if (error || !ocorrencia) { return (<ScreenWrapper><Header title="Detalhes" showBack={true} /><View style={tw`flex-1 justify-center items-center px-4`}><AlertTriangle color="#ef4444" size={32} /><Text style={tw`text-lg font-semibold text-red-500 mt-4 text-center`}>{error || 'Ocorrência não encontrada.'}</Text></View></ScreenWrapper>);}
 
-    // Função para renderizar o conteúdo da aba selecionada
     const renderContent = () => {
-        // ... (Corpo da função renderContent é o mesmo do passo anterior)
         switch (activeTab) {
             case 'geral':
                 return (
@@ -268,7 +272,7 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             {/* FAB para Ações (Opções) */}
             <TouchableOpacity 
                 style={tw`absolute bottom-20 right-6 bg-slate-900 w-14 h-14 rounded-full items-center justify-center shadow-lg z-40`}
-                onPress={() => setIsModalVisible(true)} 
+                onPress={() => setIsActionModalVisible(true)} 
                 disabled={isFinished || isFinalizing}
             >
                 <View style={tw`w-1 h-1 bg-white rounded-full my-0.5`} />
@@ -279,10 +283,9 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
             {/* Rodapé - Botão Fixo "Finalizar Ocorrência" */}
             <View style={tw`p-4 border-t border-gray-100 bg-white`}>
                 <TouchableOpacity 
-                    // Desabilita o botão se já estiver finalizada ou estiver finalizando
                     disabled={isFinished || isFinalizing} 
                     style={tw`py-4 rounded-lg items-center ${isFinished ? 'bg-gray-400' : 'bg-green-600'} ${isFinalizing ? 'opacity-70' : ''}`}
-                    onPress={handleFinalizarOcorrencia} // NOVO: Chama a função de finalização
+                    onPress={handleFinalizarOcorrencia} 
                 >
                     {isFinalizing ? (
                          <ActivityIndicator color="#FFFFFF" size="small" />
@@ -294,31 +297,17 @@ export const OcorrenciaDetalheScreen: React.FC = () => {
                 </TouchableOpacity>
             </View>
             
-            {/* Modal de Opções (Simulado) */}
-            {isModalVisible && (
-                <View style={tw`absolute inset-0 bg-black bg-opacity-50 justify-center items-center z-50`}>
-                    <View style={tw`bg-white p-6 rounded-lg w-4/5`}>
-                        <Text style={tw`text-lg font-bold mb-4`}>Opções da Ocorrência</Text>
-                        <TouchableOpacity onPress={() => { setIsModalVisible(false); Alert.alert('Ação', 'Iniciar atendimento em rota...'); }}>
-                            <Text style={tw`text-slate-800 py-2`}>Iniciar Atendimento em Rota</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => { setIsModalVisible(false); Alert.alert('Ação', 'Abrir modal de Anexos'); }}>
-                            <Text style={tw`text-slate-800 py-2`}>Anexar Mídia</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => { setIsModalVisible(false); Alert.alert('Ação', 'Abrir modal de Vítimas'); }}>
-                            <Text style={tw`text-slate-800 py-2`}>Cadastrar Vítima</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setIsModalVisible(false)} style={tw`mt-4`}>
-                            <Text style={tw`text-red-600 py-2 font-bold`}>Fechar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            )}
-            
-            {/* NOVO: Componente Toast de Sucesso */}
+            {/* Modal de Ações */}
+            <ActionModal
+                isVisible={isActionModalVisible}
+                onClose={() => setIsActionModalVisible(false)}
+                onActionSelect={handleActionSelect}
+            />
+
+            {/* Componente Toast de Sucesso */}
             <SuccessToast
                 isVisible={showSuccessToast}
-                message="Ocorrência Finalizada com Sucesso!" //
+                message="Ocorrência Finalizada com Sucesso!" 
                 onClose={() => setShowSuccessToast(false)} 
             />
 
