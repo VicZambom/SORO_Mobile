@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { LoginScreen } from '../screens/LoginScreen';
 import MyOccurrencesScreen from '../screens/OcorrenciaListaScreen';
 import TelaDetalhesOcorrencia from '../screens/TelaDetalhesOcorrencia';
+import TelaEmDeslocamento from '../screens/TelaEmDeslocamento'; // <-- NOVO IMPORT
 
 // Inicializa o Native Stack Navigator
 const Stack = createNativeStackNavigator();
@@ -16,32 +17,16 @@ const AppNavigator: React.FC = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        // Define a tela de Minhas Ocorrências como a rota inicial para testes
-        initialRouteName="ListaOcorrencias" 
-        screenOptions={{ headerShown: false }}
-      >
-        
-        {/* --- Rotas Principais --- */}
-        
-        {/* Tela de Login (Ainda não é a inicial) */}
-        <Stack.Screen name="Login" component={LoginScreen} /> 
-
-        {/* 1. Tela de Lista de Ocorrências (Componente que você fez primeiro) */}
-        <Stack.Screen 
-          name="ListaOcorrencias" 
-          component={MyOccurrencesScreen}
-        />
-
-        {/* 2. NOVA TELA DE DETALHES DA OCORRÊNCIA */}
-        <Stack.Screen 
-          name="DetalhesOcorrencia" 
-          component={TelaDetalhesOcorrencia} 
-        />
-        
+      <Stack.Navigator initialRouteName="ListaOcorrencias" screenOptions={{ headerShown: false }}>
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="ListaOcorrencias" component={MyOccurrencesScreen} />
+          <Stack.Screen name="DetalhesOcorrencia" component={TelaDetalhesOcorrencia} />
+          <Stack.Screen name="EmDeslocamento" component={TelaEmDeslocamento} />
+        </>
       </Stack.Navigator>
-    </NavigationContainer>
-  );
+    </NavigationContainer>
+ );
 };
 
 export default AppNavigator;

@@ -1,22 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native'; 
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- Definição de Tipos e Parâmetros ---
-type DetalhesRouteParams = {
+type EmDeslocamentoRouteParams = {
   id: string; 
   titulo: string;
   subtitulo: string;
   descricao: string;
 };
-// Garantindo que 'EmDeslocamento' está no tipo de rota para o replace funcionar corretamente no TypeScript
+// Tipagem reduzida para o escopo desta tela
 type RootStackParamList = {
-    DetalhesOcorrencia: DetalhesRouteParams;
-    EmDeslocamento: DetalhesRouteParams; // Adicionado para suportar a navegação
+    EmDeslocamento: EmDeslocamentoRouteParams;
+    RegistrarChegada: EmDeslocamentoRouteParams; 
 };
-type DetalhesRouteProp = RouteProp<RootStackParamList, 'DetalhesOcorrencia'>;
+type EmDeslocamentoRouteProp = RouteProp<RootStackParamList, 'EmDeslocamento'>;
 
 // Componente Chave de Detalhe (para Natureza, Prioridade, etc.)
 const ItemInformacao: React.FC<{ rotulo: string; valor: string }> = ({ rotulo, valor }) => (
@@ -27,14 +26,17 @@ const ItemInformacao: React.FC<{ rotulo: string; valor: string }> = ({ rotulo, v
 );
 
 // --- Componente Principal da Tela ---
-const TelaDetalhesOcorrencia: React.FC = () => {
-  const route = useRoute<DetalhesRouteProp>();
-  // O 'useNavigation' é agora tipado para permitir o 'replace'
+const TelaEmDeslocamento: React.FC = () => {
+  const route = useRoute<EmDeslocamentoRouteProp>();
   const navigation = useNavigation<any>(); 
   const { id, titulo, subtitulo, descricao } = route.params || {};
   const insets = useSafeAreaInsets();
 
-  // Dados Mockados
+  useEffect(() => {
+    console.log('TelaEmDeslocamento mounted, params=', route.params);
+  }, [route.params]);
+
+  // Dados Mockados (Usando os dados passados como prioridade)
   const dadosMock = {
     id: id || '#AV-2023-092',
     titulo: titulo || 'Resgate de Animal',
@@ -52,13 +54,9 @@ const TelaDetalhesOcorrencia: React.FC = () => {
     }
   };
 
-  // 🚨 FUNÇÃO ALTERADA PARA NAVEGAR 🚨
-  const handleIniciarDeslocamento = () => {
-    console.log('Iniciando Deslocamento e navegando para EmDeslocamento...');
-    // Navega para a nova tela e substitui a atual na pilha
-    // Usar `navigate` aqui para garantir que a rota será empilhada/navegada.
-    // `replace` pode falhar em alguns setups; `navigate` é mais direto para testes.
-    navigation.navigate('EmDeslocamento', {
+  const handleRegistrarChegada = () => {
+    console.log('Registrando Chegada e navegando para RegistrarChegada...');
+    navigation.replace('RegistrarChegada', {
         id: dadosMock.id,
         titulo: dadosMock.titulo,
         subtitulo: dadosMock.subtitulo,
@@ -70,15 +68,17 @@ const TelaDetalhesOcorrencia: React.FC = () => {
     console.log('Abrindo mapa para navegação...');
   };
 
-    return (
-        <View style={styles.screenView}>
-
-            {/* 🔝 CONTAINER PRINCIPAL DO TOPO (Fundo Rosa Claro) */}
-            <View style={[styles.topBarContainer, { paddingTop: insets.top }]}> 
-                {/* 1. Header Bar: Botão de voltar e ID da Ocorrência */}
-                <View style={styles.headerBar}>
+  return (
+    <View style={styles.screenView}> 
+      
+      {/* 🔝 CONTAINER PRINCIPAL DO TOPO (Fundo Laranja) */}
+      <View style={[styles.topBarContainer, { paddingTop: insets.top }]}>
+        
+        {/* 1. Header Bar: Botão de voltar e ID da Ocorrência */}
+        <View style={styles.headerBar}>
+          {/* BOTÃO DE VOLTAR - ÍCONE REMOVIDO, APENAS TOUCHABLEOPACITY PARA ALINHAMENTO */}
           <TouchableOpacity 
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.popToTop()} 
             style={styles.backButton} 
           >
             <Text style={[styles.iconPlaceholder, { fontSize: 26 }]}>←</Text> 
@@ -87,11 +87,11 @@ const TelaDetalhesOcorrencia: React.FC = () => {
           <View style={{ width: 24 }} /> 
         </View>
 
-        {/* 2. Status Bar: Pílula Vermelha */}
+        {/* 2. Status Bar: Pílula Laranja (EM DESLOCAMENTO) */}
         <View style={styles.statusBar}>
           <View style={styles.statusPill}>
             <Text style={styles.statusPillText}>
-              <Text style={styles.dot}>●</Text> PENDENTE • AGUARDANDO EQUIPE
+              <Text style={styles.dot}>●</Text> PENDENTE • EM DESLOCAMENTO
             </Text>
           </View>
         </View>
@@ -116,7 +116,7 @@ const TelaDetalhesOcorrencia: React.FC = () => {
         {/* --- Card de Localização --- */}
           <View style={styles.locationCard}>
             <View style={styles.locationHeader}>
-              {/* Círculo rosa de fundo para o pin VERMELHO */}
+              {/* Ícone de pin VERMELHO, usando Unicode */}
               <View style={styles.locationIconBackground}> 
                 <Text style={[styles.iconPlaceholder, { color: '#ef4444', fontSize: 22 }]}>📍</Text> 
               </View>
@@ -128,7 +128,6 @@ const TelaDetalhesOcorrencia: React.FC = () => {
             </View>
           
             <TouchableOpacity style={styles.mapButton} onPress={handleNavegarMapa} activeOpacity={0.8}>
-              {/* Pin AZUL para o botão (Corrigido para o padrão do protótipo) */}
                 <Text style={[styles.iconPlaceholder, { color: '#3b82f6', fontSize: 20, marginRight: 8 }]}>📍</Text>
               <Text style={styles.mapButtonTextFinal}>Ir para o mapa</Text>
             </TouchableOpacity>
@@ -138,11 +137,11 @@ const TelaDetalhesOcorrencia: React.FC = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* --- Rodapé Fixo (Botão Iniciar Deslocamento) --- */}
+      {/* --- Rodapé Fixo (Botão REGISTRAR CHEGADA) --- */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleIniciarDeslocamento} activeOpacity={0.9}>
-            <Text style={[styles.iconPlaceholder, { color: '#fff', fontSize: 20, marginRight: 12 }]}>➤</Text>
-            <Text style={styles.actionButtonText}>INICIAR DESLOCAMENTO</Text>
+          <TouchableOpacity style={styles.actionButton} onPress={handleRegistrarChegada} activeOpacity={0.9}>
+            {/* 🚨 Ícone removido daqui 🚨 */}
+            <Text style={styles.actionButtonText}>REGISTRAR CHEGADA</Text>
           </TouchableOpacity>
         </View>
         
@@ -161,7 +160,7 @@ const styles = StyleSheet.create({
   
   // 1. AJUSTES DO TOPO (HEADER/STATUS)
   topBarContainer: {
-    backgroundColor: '#FECACA',
+    backgroundColor: '#FDBA74', 
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingBottom: 20,
@@ -206,7 +205,7 @@ const styles = StyleSheet.create({
   },
   
   statusPill: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#ea580c', 
     borderRadius: 8,
     width: '90%',
     paddingHorizontal: 16,
@@ -341,7 +340,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, 
     borderColor: '#bfdbfe',
     flexDirection: 'row',
-    justifyContent: 'center', // Centralizado
+    justifyContent: 'center',
     alignItems: 'center',
   },
   mapButtonTextFinal: {
@@ -381,4 +380,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TelaDetalhesOcorrencia;
+export default TelaEmDeslocamento;
