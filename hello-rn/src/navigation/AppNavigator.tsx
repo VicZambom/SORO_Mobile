@@ -1,9 +1,8 @@
-// src/navigation/AppNavigator.tsx
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native'; 
-import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
 
+// Importando as TELAS reais do diretório `src/screens`
 import { LoginScreen } from '../screens/LoginScreen';
 import { DashboardScreen } from '../screens/MinhasOcorrenciasScreen';
 import { useAuth } from '../context/AuthContext'; 
@@ -12,34 +11,41 @@ import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export const AppNavigator: React.FC = () => {
-  const { signed, loading } = useAuth();
+// Inicializa o Native Stack Navigator
+const Stack = createNativeStackNavigator();
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
+const AppNavigator: React.FC = () => {
+  // Simulação de lógica de autenticação
+  const userIsAuthenticated = true; 
 
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#F8FAFC' }
-        }}
+        // Define a tela de Minhas Ocorrências como a rota inicial para testes
+        initialRouteName="ListaOcorrencias" 
+        screenOptions={{ headerShown: false }}
       >
-        {/* Renderização Condicional */}
-        {signed ? (
-          // Se estiver logado, SÓ existe o Dashboard (e telas internas dele)
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        ) : (
-          // Se NÃO estiver logado, SÓ existe o Login
-          <Stack.Screen name="Login" component={LoginScreen} />
-        )}
+        
+        {/* --- Rotas Principais --- */}
+        
+        {/* Tela de Login (Ainda não é a inicial) */}
+        <Stack.Screen name="Login" component={LoginScreen} /> 
+
+        {/* 1. Tela de Lista de Ocorrências (Componente que você fez primeiro) */}
+        <Stack.Screen 
+          name="ListaOcorrencias" 
+          component={MyOccurrencesScreen}
+        />
+
+        {/* 2. NOVA TELA DE DETALHES DA OCORRÊNCIA */}
+        <Stack.Screen 
+          name="DetalhesOcorrencia" 
+          component={TelaDetalhesOcorrencia} 
+        />
+        
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
+
+export default AppNavigator;
