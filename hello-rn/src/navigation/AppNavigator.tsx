@@ -4,8 +4,12 @@ import { NavigationContainer } from '@react-navigation/native';
 
 // Importando as TELAS reais do diretório `src/screens`
 import { LoginScreen } from '../screens/LoginScreen';
-import MyOccurrencesScreen from '../screens/OcorrenciaListaScreen';
-import TelaDetalhesOcorrencia from '../screens/TelaDetalhesOcorrencia';
+import { DashboardScreen } from '../screens/MinhasOcorrenciasScreen';
+import { useAuth } from '../context/AuthContext'; 
+
+import { RootStackParamList } from '../types/navigation';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Inicializa o Native Stack Navigator
 const Stack = createNativeStackNavigator();
