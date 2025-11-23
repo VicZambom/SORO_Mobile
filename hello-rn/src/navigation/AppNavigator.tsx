@@ -8,7 +8,7 @@ import tw from 'twrnc';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { MinhasOcorrencias } from '../screens/MinhasOcorrenciasScreen'; 
-import TelaDetalhesOcorrencia from '../screens/TelaDetalhesOcorrencia';
+import { DetalhePendenteScreen } from '../screens/DetalhePendenteScreen';
 import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
 import { PerfilScreen } from '../screens/PerfilScreen';
 
@@ -37,7 +37,7 @@ const AppNavigator: React.FC = () => {
           // --- FLUXO AUTENTICADO ---
           <>
             <Stack.Screen name="MinhasOcorrencias" component={MinhasOcorrencias} />
-            <Stack.Screen name="OcorrenciaDetalhe" component={TelaDetalhesOcorrencia} />
+            <Stack.Screen name="DetalhePendente" component={DetalhePendenteScreen} />
             <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
             <Stack.Screen name="Perfil" component={PerfilScreen} />
           </>

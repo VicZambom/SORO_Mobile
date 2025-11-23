@@ -4,7 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 export type RootStackParamList = {
   Login: undefined;
   MinhasOcorrencias: undefined;
-  OcorrenciaDetalhe: { id: string };
+  DetalhePendente: { id: string };
   NovaOcorrencia: undefined;
   Perfil: undefined;
 };
