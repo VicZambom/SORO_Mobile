@@ -1,48 +1,48 @@
+// src/navigation/AppNavigator.tsx
 import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
+import tw from 'twrnc';
 
-// Importando as TELAS reais do diretório `src/screens`
+import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
-import { DashboardScreen } from '../screens/MinhasOcorrenciasScreen';
-import { useAuth } from '../context/AuthContext'; 
+import { MinhasOcorrencias } from '../screens/MinhasOcorrenciasScreen'; 
+import TelaDetalhesOcorrencia from '../screens/TelaDetalhesOcorrencia';
+import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
 
+// Tipos das rotas 
 import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Inicializa o Native Stack Navigator
-const Stack = createNativeStackNavigator();
-
 const AppNavigator: React.FC = () => {
-  // Simulação de lógica de autenticação
-  const userIsAuthenticated = true; 
+  // Estado real de autenticação
+  const { signed, loading } = useAuth();
+
+  // Enquanto verifica o token no AsyncStorage, mostra um loading
+  if (loading) {
+    return (
+      <View style={tw`flex-1 justify-center items-center bg-white`}>
+        <ActivityIndicator size="large" color="#0F172A" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        // Define a tela de Minhas Ocorrências como a rota inicial para testes
-        initialRouteName="ListaOcorrencias" 
-        screenOptions={{ headerShown: false }}
-      >
-        
-        {/* --- Rotas Principais --- */}
-        
-        {/* Tela de Login (Ainda não é a inicial) */}
-        <Stack.Screen name="Login" component={LoginScreen} /> 
-
-        {/* 1. Tela de Lista de Ocorrências (Componente que você fez primeiro) */}
-        <Stack.Screen 
-          name="ListaOcorrencias" 
-          component={MyOccurrencesScreen}
-        />
-
-        {/* 2. NOVA TELA DE DETALHES DA OCORRÊNCIA */}
-        <Stack.Screen 
-          name="DetalhesOcorrencia" 
-          component={TelaDetalhesOcorrencia} 
-        />
-        
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {signed ? (
+          // --- FLUXO AUTENTICADO ---
+          <>
+            <Stack.Screen name="MinhasOcorrencias" component={MinhasOcorrencias} />
+            <Stack.Screen name="OcorrenciaDetalhe" component={TelaDetalhesOcorrencia} />
+            <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
+          </>
+        ) : (
+          // --- FLUXO NÃO AUTENTICADO ---
+          <Stack.Screen name="Login" component={LoginScreen} />
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );
