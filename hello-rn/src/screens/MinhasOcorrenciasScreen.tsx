@@ -90,7 +90,7 @@ export const MinhasOcorrencias = () => {
   const renderItem = ({ item }: { item: OcorrenciaAPI }) => (
     <Card 
       style={tw`bg-white border-l-4 border-l-red-500 border-gray-100 shadow-sm p-4 mb-3 rounded-l-none`}
-      onPress={() => navigation.navigate('OcorrenciaDetalhe', { id: item.id_ocorrencia })}
+      onPress={() => navigation.navigate('DetalhePendente', { id: item.id_ocorrencia })}
     >
       <View style={tw`flex-row justify-between mb-1`}>
         <Text style={tw`text-xs font-bold text-slate-500`}>
@@ -143,7 +143,7 @@ export const MinhasOcorrencias = () => {
         {ocorrenciaAtual ? (
           <Card 
             style={tw`bg-orange-50 border-orange-200 border shadow-sm p-5`}
-            onPress={() => navigation.navigate('OcorrenciaDetalhe', { id: ocorrenciaAtual.id_ocorrencia })}
+            onPress={() => navigation.navigate('DetalhePendente', { id: ocorrenciaAtual.id_ocorrencia })}
           >
             <View style={tw`flex-row justify-between items-center mb-3`}>
               <Text style={tw`text-sm font-bold text-slate-700`}>
@@ -166,7 +166,7 @@ export const MinhasOcorrencias = () => {
 
             <TouchableOpacity 
               style={tw`bg-orange-400 py-3 rounded-lg items-center shadow-sm`}
-              onPress={() => navigation.navigate('OcorrenciaDetalhe', { id: ocorrenciaAtual.id_ocorrencia })}
+              onPress={() => navigation.navigate('DetalhePendente', { id: ocorrenciaAtual.id_ocorrencia })}
             >
               <Text style={tw`text-white font-bold text-sm uppercase tracking-wide`}>
                 Ver Detalhes / Atualizar
