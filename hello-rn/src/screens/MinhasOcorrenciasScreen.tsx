@@ -116,15 +116,19 @@ export const MinhasOcorrencias = () => {
   // Cabeçalho da Lista
   const ListHeader = () => (
     <View>
-      {/* Header da Página */}
+      {/* --- HEADER --- */}
       <View style={tw`flex-row justify-between items-center mb-6 mt-2`}>
         <View>
           <Text style={tw`text-2xl font-bold text-slate-900`}>Minhas Ocorrências</Text>
-          <Text style={tw`text-sm text-slate-500`}>Olá, {user?.name || 'Bombeiro'}</Text>
+          <Text style={tw`text-sm text-slate-500`}>
+            {user?.name ? `Olá, ${user.name.split(' ')[0]}` : 'Bem-vindo'}
+          </Text>
         </View>
+        
+        {/* Botão de Perfil */}
         <TouchableOpacity 
-          style={tw`w-10 h-10 bg-gray-200 rounded-full items-center justify-center`}
-          onPress={() => navigation.navigate('Login')} 
+          style={tw`w-10 h-10 bg-gray-200 rounded-full items-center justify-center border border-gray-300`}
+          onPress={() => navigation.navigate('Perfil')} 
         >
           <User color="#475569" size={20} />
         </TouchableOpacity>
