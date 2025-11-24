@@ -1,5 +1,5 @@
 // src/screens/MinhasOcorrenciasScreen.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import tw from 'twrnc';
 import { User, Clock, Plus, RefreshCw } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { ScreenWrapper } from '../components/ScreenWrapper';
 import { Card } from '../components/Card';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { AppNavigationProp } from '../types/navigation';
 
 // --- TIPAGEM DOS DADOS DA API ---
@@ -28,6 +29,7 @@ interface OcorrenciaAPI {
 export const MinhasOcorrencias = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const { user } = useAuth();
+  const { socket } = useSocket();
 
   // Estados para armazenar os dados reais
   const [ocorrenciaAtual, setOcorrenciaAtual] = useState<OcorrenciaAPI | null>(null);
@@ -71,6 +73,53 @@ export const MinhasOcorrencias = () => {
       setRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    // Se o socket não existir (ex: usuário deslogado ou sem internet), não faz nada.
+    if (!socket) return;
+
+    // --- CANAL 1: NOVA OCORRÊNCIA ---
+    socket.on('nova_ocorrencia', (novaOcorrencia: OcorrenciaAPI) => {
+      console.log('⚡ Socket: Nova ocorrência recebida:', novaOcorrencia);
+
+      // Lógica de Estado
+      setFilaDeEspera((prevLista) => [novaOcorrencia, ...prevLista]);
+      Alert.alert('Nova Ocorrência', `Tipo: ${novaOcorrencia.subgrupo?.descricao_subgrupo}`);
+    });
+
+    // --- CANAL 2: OCORRÊNCIA ATUALIZADA ---
+    socket.on('ocorrencia_atualizada', (ocorrenciaAtualizada: OcorrenciaAPI) => {
+      console.log('⚡ Socket: Atualização recebida:', ocorrenciaAtualizada);
+
+      // Cenário A: A ocorrência na lista de pendentes
+      setFilaDeEspera((prevLista) => 
+        prevLista.map((item) => 
+          item.id_ocorrencia === ocorrenciaAtualizada.id_ocorrencia 
+            ? ocorrenciaAtualizada 
+            : item
+        )
+      );
+
+      // Cenário B: Ocorrência em andamento
+      if (ocorrenciaAtual?.id_ocorrencia === ocorrenciaAtualizada.id_ocorrencia) {
+        setOcorrenciaAtual(ocorrenciaAtualizada);
+      }
+
+      // Cenário C: Se o status mudou de PENDENTE para EM_ANDAMENTO (alguém pegou),
+      // ela deve sair da fila e ir para o destaque.
+      // Nesse caso complexo, forçamos um refresh completo para garantir a ordem correta.
+      if (ocorrenciaAtualizada.status_situacao === 'EM_ANDAMENTO') {
+         fetchDados(); 
+      }
+    });
+
+    // 4. CLEANUP (Limpeza)
+    return () => {
+      socket.off('nova_ocorrencia');
+      socket.off('ocorrencia_atualizada');
+    };
+
+  }, [socket, ocorrenciaAtual]); // Reexecuta se o socket mudar ou a ocorrência atual mudar
 
   // useFocusEffect garante que os dados atualizem sempre que a tela aparecer
   useFocusEffect(
