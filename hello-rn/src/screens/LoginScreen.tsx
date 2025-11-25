@@ -3,11 +3,14 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Image } from 'react-native';
 import tw from 'twrnc';
 import { useAuth } from '../context/AuthContext'; 
-import { Input } from '../components/Input'; 
+import { Input } from '../components/Input';
+import { Square, CheckSquare } from 'lucide-react-native'; 
 
 export const LoginScreen = () => { 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  
   const { signIn } = useAuth(); 
   const [loading, setLoading] = useState(false);
 
@@ -16,13 +19,15 @@ export const LoginScreen = () => {
 
     try {
       setLoading(true);
-      await signIn(email, password); 
+      await signIn(email, password, rememberMe); 
     } catch (error: any) {
       Alert.alert('Erro', 'Falha no login. Verifique suas credenciais.');
     } finally {
       setLoading(false);
     }
   };
+
+  const toggleRememberMe = () => setRememberMe(!rememberMe);
 
   return (
     <KeyboardAvoidingView 
@@ -67,13 +72,27 @@ export const LoginScreen = () => {
             secureTextEntry 
           />
 
+          {/* --- CHECKBOX "LEMBRAR DE MIM" --- */}
           <TouchableOpacity 
-            style={tw`bg-slate-900 rounded-lg py-4 items-center mt-6 shadow-sm ${loading ? 'opacity-70' : ''}`}
+            style={tw`flex-row items-center mt-2 mb-2`} 
+            onPress={toggleRememberMe}
+            activeOpacity={0.8}
+          >
+            {rememberMe ? (
+              <CheckSquare size={24} color="#0F172A" /> // Ícone marcado
+            ) : (
+              <Square size={24} color="#94a3b8" /> // Ícone desmarcado
+            )}
+            <Text style={tw`ml-2 text-slate-700 text-base`}>Lembrar de mim</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={tw`bg-slate-900 rounded-lg py-4 items-center mt-4 shadow-sm ${loading ? 'opacity-70' : ''}`}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#061C43" />
+              <ActivityIndicator color="#ffffff" />
             ) : (
               <Text style={tw`text-white font-bold text-lg`}>Entrar</Text>
             )}

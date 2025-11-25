@@ -13,8 +13,10 @@ interface User {
 interface AuthContextData {
   signed: boolean;
   user: User | null;
-  loading: boolean; 
-  signIn: (email: string, password: string) => Promise<void>;
+  loading: boolean;
+
+  // Parâmetro rememberMe
+  signIn: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   signOut: () => void;
 }
 
@@ -24,9 +26,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Verifica se já tem token salvo
   useEffect(() => {
-    async function loadStorageData() {
+    async function loadStorageData() { 
+      // Ao fazer a leitura, se o usuário marcou "lembrar" anteriormente, ele loga.
+
       const storedUser = await AsyncStorage.getItem('@SORO:user');
       const storedToken = await AsyncStorage.getItem('@SORO:token');
 
@@ -40,8 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadStorageData();
   }, []);
 
-  // Função de Login 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, rememberMe: boolean) {
     try {
       const response = await api.post('/api/v1/auth/login', { 
         email,
@@ -50,22 +52,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { token, user } = response.data; 
 
-      // Configura o token no Axios para as próximas requisições
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // Salva no celular
-      await AsyncStorage.setItem('@SORO:user', JSON.stringify(user));
-      await AsyncStorage.setItem('@SORO:token', token);
+      // SÓ salva no celular se o usuário pediu para lembrar
+      if (rememberMe) {
+        await AsyncStorage.setItem('@SORO:user', JSON.stringify(user));
+        await AsyncStorage.setItem('@SORO:token', token);
+      }
 
+      // Atualiza o estado da aplicação 
       setUser(user);
       
     } catch (error: any) {
-      // Repassa o erro para a tela de Login tratar (exibir o Alert)
       throw error;
     }
   }
 
-  // Função de Logout
   async function signOut() {
     await AsyncStorage.clear();
     setUser(null);

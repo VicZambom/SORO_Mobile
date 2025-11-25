@@ -1,13 +1,18 @@
 // src/navigation/AppNavigator.tsx
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native'; 
-import { NavigationContainer } from '@react-navigation/native';
+import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
+import tw from 'twrnc';
 
+import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
-import { DashboardScreen } from '../screens/DashboardScreen';
-import { useAuth } from '../context/AuthContext'; 
+import { MinhasOcorrencias } from '../screens/MinhasOcorrenciasScreen'; 
+import { DetalhePendenteScreen } from '../screens/DetalhePendenteScreen';
+import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
+import { PerfilScreen } from '../screens/PerfilScreen';
 
+// Tipos das rotas 
 import { RootStackParamList } from '../types/navigation';
 
 // --- NOVAS TELAS IMPORTADAS ---
@@ -19,45 +24,40 @@ import { RegistroVitimaScreen } from '../screens/RegistroVitimaScreen'; // NOVO:
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export const AppNavigator: React.FC = () => {
+const AppNavigator: React.FC = () => {
+  // Estado real de autenticação
   const { signed, loading } = useAuth();
 
+  // Enquanto verifica o token no AsyncStorage, mostra um loading
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={tw`flex-1 justify-center items-center bg-white`}>
+        <ActivityIndicator size="large" color="#0F172A" />
       </View>
     );
   }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#F8FAFC' }
-        }}
-      >
-        {/* Renderização Condicional */}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         {signed ? (
-          // Se estiver logado, renderizamos o Dashboard E TODAS as telas da aplicação
-          <React.Fragment>
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            
-            {/* ROTAS DA APLICAÇÃO (Matheus e Maíra) */}
-            <Stack.Screen name="OcorrenciaLista" component={OcorrenciaListaScreen} />
+
+          // --- FLUXO AUTENTICADO ---
+          <>
+            <Stack.Screen name="MinhasOcorrencias" component={MinhasOcorrencias} />
             <Stack.Screen name="OcorrenciaDetalhe" component={OcorrenciaDetalheScreen} /> 
-            <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
-            
-            {/* ROTA DA NOVA VÍTIMA */}
             <Stack.Screen name="RegistroVitima" component={RegistroVitimaScreen} />
-            
-          </React.Fragment>
+            <Stack.Screen name="DetalhePendente" component={DetalhePendenteScreen} />
+            <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
+            <Stack.Screen name="Perfil" component={PerfilScreen} />
+          </>
         ) : (
-          // Se NÃO estiver logado, SÓ existe o Login
+          // --- FLUXO NÃO AUTENTICADO ---
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
+
+export default AppNavigator;
