@@ -7,6 +7,7 @@ export type RootStackParamList = {
   DetalhePendente: { id: string };
   NovaOcorrencia: undefined;
   Perfil: undefined;
+  Sobre: undefined;
 };
 
 export type AppNavigationProp = NativeStackNavigationProp<RootStackParamList>;
