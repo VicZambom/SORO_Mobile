@@ -2,34 +2,34 @@ import React from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
 import tw from 'twrnc';
 import { ArrowLeft } from 'lucide-react-native';
-import { ScreenWrapper } from '../components/ScreenWrapper'; // O ScreenWrapper corrigido
+import { ScreenWrapper } from '../components/ScreenWrapper';
 import { useNavigation } from '@react-navigation/native';
 
 export const SobreScreen = () => {
   const navigation = useNavigation();
 
   return (
-    // Esta linha agora funciona, pois ScreenWrapper aceita a prop style
-    <ScreenWrapper style={tw`bg-white`}> 
-      {/* Header */}
-      <View style={tw`flex-row items-center px-3 mt-3 mb-6`}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={tw`mr-3 p-2 rounded-full border border-slate-300 bg-white`}
-        >
-          <ArrowLeft size={22} color="#0A1A36" />
-        </TouchableOpacity>
+    <ScreenWrapper>
+      <ScrollView showsVerticalScrollIndicator={false} style={tw`bg-white`}>
 
-        <Text style={tw`text-base text-[#0A1A36] font-medium`}>
-          Sobre o S.O.R.O.
-        </Text>
-      </View>
+        {/* Header */}
+        <View style={tw`flex-row items-center px-3 mt-3 mb-6`}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={tw`mr-3 p-2 rounded-full border border-slate-300 bg-white`}
+          >
+            <ArrowLeft size={22} color="#0A1A36" />
+          </TouchableOpacity>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={tw`text-base text-[#0A1A36] font-medium`}>
+            Sobre o S.O.R.O.
+          </Text>
+        </View>
+
         {/* Logo + Título */}
         <View style={tw`items-center px-6 mb-6`}>
           <Image
-            source={require('../../assets/soro-logo.png')}
+            source={require('../../assets/Logo.png')}
             style={tw`w-20 h-20 mb-3`}
             resizeMode="contain"
           />

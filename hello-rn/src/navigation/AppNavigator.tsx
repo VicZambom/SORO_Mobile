@@ -11,6 +11,7 @@ import { MinhasOcorrencias } from '../screens/MinhasOcorrenciasScreen';
 import { DetalhePendenteScreen } from '../screens/DetalhePendenteScreen';
 import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
 import { PerfilScreen } from '../screens/PerfilScreen';
+import { SobreScreen } from '../screens/SobreScreen';
 
 // Tipos das rotas 
 import { RootStackParamList } from '../types/navigation';
@@ -40,6 +41,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="DetalhePendente" component={DetalhePendenteScreen} />
             <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
             <Stack.Screen name="Perfil" component={PerfilScreen} />
+            <Stack.Screen name="Sobre" component= {SobreScreen} />
           </>
         ) : (
           // --- FLUXO NÃO AUTENTICADO ---
