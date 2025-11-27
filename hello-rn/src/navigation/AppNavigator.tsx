@@ -9,18 +9,13 @@ import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { MinhasOcorrencias } from '../screens/MinhasOcorrenciasScreen'; 
 import { DetalhePendenteScreen } from '../screens/DetalhePendenteScreen';
-import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
 import { PerfilScreen } from '../screens/PerfilScreen';
+import { OcorrenciaDetalheScreen } from '../screens/OcorrenciaDetalheScreen'; // Assumindo pasta Ocorrencias
+import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
+import { RegistroVitimaScreen } from '../screens/RegistroVitimaScreen';
 
 // Tipos das rotas 
 import { RootStackParamList } from '../types/navigation';
-
-// --- NOVAS TELAS IMPORTADAS ---
-// Caminho ajustado para onde você criou as telas:
-import { OcorrenciaListaScreen } from '../screens/OcorrenciaListaScreen'; 
-import { OcorrenciaDetalheScreen } from '../screens/OcorrenciaDetalheScreen'; // Assumindo pasta Ocorrencias
-import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
-import { RegistroVitimaScreen } from '../screens/RegistroVitimaScreen'; // NOVO: Tela de Registro de Vítima
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
