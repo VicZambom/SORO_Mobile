@@ -45,6 +45,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="DetalhePendente" component={DetalhePendenteScreen} />
             <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
             <Stack.Screen name="Perfil" component={PerfilScreen} />
+            <Stack.Screen name="Sobre" component= {SobreScreen} />
           </>
         ) : (
           // --- FLUXO NÃO AUTENTICADO ---
