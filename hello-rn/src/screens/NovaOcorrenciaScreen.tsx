@@ -1,7 +1,6 @@
 // src/screens/NovaOcorrenciaScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  ScrollView, Text, View, TouchableOpacity, KeyboardAvoidingView, 
+import { ScrollView, Text, View, TouchableOpacity, KeyboardAvoidingView, 
   Platform, Modal, FlatList, ActivityIndicator, Alert, TextInput 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

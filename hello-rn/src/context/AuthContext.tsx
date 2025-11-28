@@ -5,9 +5,11 @@ import api from '../services/api';
 
 interface User {
   id: string;
-  name: string;
+  nome: string;
   email: string;
-  role?: string;
+  matricula: string;
+  tipo_perfil: string;
+  id_unidade_operacional_fk?: string | null; 
 }
 
 interface AuthContextData {

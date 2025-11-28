@@ -5,7 +5,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft, MapPin, Navigation as NavigationIcon, CheckCircle } from 'lucide-react-native';
 import tw from 'twrnc';
-
 import api from '../services/api';
 import { RootStackParamList } from '../types/navigation';
 

@@ -170,7 +170,7 @@ export const MinhasOcorrencias = () => {
         <View>
           <Text style={tw`text-2xl font-bold text-slate-900`}>Minhas Ocorrências</Text>
           <Text style={tw`text-sm text-slate-500`}>
-            {user?.name ? `Olá, ${user.name.split(' ')[0]}` : 'Bem-vindo'}
+            {user?.nome ? `Olá, ${user.nome.split(' ')[0]}` : 'Bem-vindo'}
           </Text>
         </View>
         
