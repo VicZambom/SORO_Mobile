@@ -1,6 +1,6 @@
 // src/screens/DetalhePendenteScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft, MapPin, Navigation as NavigationIcon, CheckCircle } from 'lucide-react-native';
@@ -36,6 +36,8 @@ interface OcorrenciaDetalhada {
   localizacao?: {
     logradouro: string;
     referencia_logradouro: string;
+    latitude?: number; 
+    longitude?: number; 
   };
 }
 
@@ -100,10 +102,10 @@ export const DetalhePendenteScreen: React.FC = () => {
     if (!ocorrencia) return;
 
     if (ocorrencia.status_situacao === 'PENDENTE') {
-      // Ação: Iniciar Deslocamento -> Muda para EM_ANDAMENTO
+      // Iniciar Deslocamento -> Muda para EM_ANDAMENTO
       handleStatusUpdate('EM_ANDAMENTO');
     } else if (ocorrencia.status_situacao === 'EM_ANDAMENTO') {
-      // Ação: Registrar Chegada
+      // Registrar Chegada
       Alert.alert(
         "Registrar Chegada",
         "Deseja confirmar a chegada ao local?",
@@ -116,8 +118,43 @@ export const DetalhePendenteScreen: React.FC = () => {
   };
 
   const handleNavegarMapa = () => {
-    // Integração com Maps/Waze virá aqui
-    Alert.alert('Mapa', `Abrindo rota para ${ocorrencia?.bairro.nome_bairro}...`);
+    if (!ocorrencia) return;
+
+    const { localizacao, bairro } = ocorrencia;
+    const lat = localizacao?.latitude;
+    const lng = localizacao?.longitude;
+    
+    // Monta um endereço aproximado caso não tenha GPS exato
+    const enderecoCompleto = `${localizacao?.logradouro || ''}, ${bairro.nome_bairro}, ${bairro.municipio?.nome_municipio || ''}`;
+    const label = "Local da Ocorrência";
+
+    let url = '';
+
+    if (lat && lng) {
+      const latLng = `${lat},${lng}`;
+      if (Platform.OS === 'ios') {
+        url = `maps:0,0?q=${label}@${latLng}`;
+      } else {
+        url = `geo:${latLng}?q=${latLng}(${label})`;
+      }
+    } else {
+      const query = encodeURIComponent(enderecoCompleto);
+      if (Platform.OS === 'ios') {
+        url = `maps:0,0?q=${query}`;
+      } else {
+        url = `geo:0,0?q=${query}`;
+      }
+    }
+
+    Linking.canOpenURL(url).then(supported => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        // Se não tiver o aplicativo, abre no navegador
+        const browserUrl = `https://www.google.com/maps/search/?api=1&query=${lat && lng ? `${lat},${lng}` : encodeURIComponent(enderecoCompleto)}`;
+        Linking.openURL(browserUrl);
+      }
+    }).catch(err => console.error('Erro ao abrir mapa:', err));
   };
 
   // Formatação de hora
