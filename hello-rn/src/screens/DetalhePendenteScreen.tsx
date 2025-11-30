@@ -6,7 +6,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft, MapPin, Navigation as NavigationIcon, CheckCircle } from 'lucide-react-native';
 import tw from 'twrnc';
 import api from '../services/api';
-import { RootStackParamList } from '../types/navigation';
+import { RootStackParamList, AppNavigationProp } from '../types/navigation';
 
 type DetalhePendenteRouteProp = RouteProp<RootStackParamList, 'DetalhePendente'>;
 
@@ -40,7 +40,7 @@ interface OcorrenciaDetalhada {
 }
 
 export const DetalhePendenteScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<AppNavigationProp>();
   const route = useRoute<DetalhePendenteRouteProp>();
   const insets = useSafeAreaInsets();
 
@@ -85,7 +85,7 @@ export const DetalhePendenteScreen: React.FC = () => {
         Alert.alert('Sucesso', 'Deslocamento iniciado!');
       } else if (novoStatus === 'CONCLUIDO') {
         Alert.alert('Sucesso', 'Chegada registrada e ocorrência concluída (simulação)!');
-        navigation.goBack();
+        navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
       }
 
     } catch (error) {

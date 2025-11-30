@@ -5,6 +5,8 @@ export type RootStackParamList = {
   Login: undefined;
   MinhasOcorrencias: undefined;
   DetalhePendente: { id: string };
+  DetalheAndamento: { id: string };
+  RegistrarVitima: { ocorrenciaId: string };
   NovaOcorrencia: undefined;
   Perfil: undefined;
   Sobre: undefined;
