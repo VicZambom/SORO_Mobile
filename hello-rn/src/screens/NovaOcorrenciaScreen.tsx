@@ -30,7 +30,7 @@ interface FormData {
   hora: Date;
   formaAcervoId: string;
   nrAviso: string;
-  observacoes: string; // Adicionado
+  observacoes: string; 
 }
 
 // --- COMPONENTES INTERNOS ---
@@ -177,9 +177,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     const loadInitialData = async () => {
       try {
         const [resNat, resBai, resFor] = await Promise.all([
-          api.get('/api/v1/naturezas'),
-          api.get('/api/v1/bairros'),
-          api.get('/api/v1/formas-acervo')
+          api.get('/api/v2/naturezas'),
+          api.get('/api/v2/bairros'),
+          api.get('/api/v2/formas-acervo')
         ]);
         setNaturezas(resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao })));
         setBairros(resBai.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro })));
@@ -199,7 +199,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     
     setLoadingList(true);
     try {
-       const res = await api.get('/api/v1/grupos'); 
+       const res = await api.get('/api/v2/grupos'); 
        const filtered = res.data
          .filter((g: any) => g.id_natureza_fk === item.id)
          .map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
@@ -214,7 +214,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
 
     setLoadingList(true);
     try {
-       const res = await api.get('/api/v1/subgrupos'); 
+       const res = await api.get('/api/v2/subgrupos'); 
        const filtered = res.data
          .filter((s: any) => s.id_grupo_fk === item.id)
          .map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
@@ -248,7 +248,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         }
       };
 
-      await api.post('/api/v1/ocorrencias', payload);
+      await api.post('/api/v2/ocorrencias', payload);
       
       Alert.alert("Ocorrência Criada!", "Os dados foram enviados com sucesso.", [
         { text: "Voltar ao Início", onPress: () => navigation.navigate('MinhasOcorrencias') }

@@ -53,7 +53,7 @@ export const DetalhePendenteScreen: React.FC = () => {
   // --- BUSCAR DADOS (GET) ---
   const fetchDetalhes = async () => {
     try {
-      const response = await api.get(`/api/v1/ocorrencias/${id}`);
+      const response = await api.get(`/api/v2/ocorrencias/${id}`);
       setOcorrencia(response.data);
     } catch (error) {
       console.error('Erro ao buscar detalhes:', error);
@@ -74,7 +74,7 @@ export const DetalhePendenteScreen: React.FC = () => {
     setUpdating(true);
     try {
       // Atualiza o status no backend
-      await api.put(`/api/v1/ocorrencias/${ocorrencia.id_ocorrencia}`, {
+      await api.put(`/api/v2/ocorrencias/${ocorrencia.id_ocorrencia}`, {
         status_situacao: novoStatus,
       });
 

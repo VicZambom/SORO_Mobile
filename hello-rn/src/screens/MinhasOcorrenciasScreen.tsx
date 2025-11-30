@@ -48,7 +48,7 @@ export const MinhasOcorrencias = () => {
   const fetchDados = async () => {
     try {
       // Busca ocorrências EM ANDAMENTO (para o destaque)
-      const resAndamento = await api.get('/api/v1/ocorrencias', {
+      const resAndamento = await api.get('/api/v2/ocorrencias', {
         params: { status: 'EM_ANDAMENTO', limit: 1 }
       });
       
@@ -60,7 +60,7 @@ export const MinhasOcorrencias = () => {
       }
 
       // Busca ocorrências PENDENTES
-      const resPendentes = await api.get('/api/v1/ocorrencias', {
+      const resPendentes = await api.get('/api/v2/ocorrencias', {
         params: { status: 'PENDENTE', limit: 20 }
       });
       setFilaDeEspera(resPendentes.data.data || []);
