@@ -107,13 +107,12 @@ export const MinhasOcorrencias = () => {
 
       // Cenário C: Se o status mudou de PENDENTE para EM_ANDAMENTO (alguém pegou),
       // ela deve sair da fila e ir para o destaque.
-      // Nesse caso complexo, forçamos um refresh completo para garantir a ordem correta.
       if (ocorrenciaAtualizada.status_situacao === 'EM_ANDAMENTO') {
          fetchDados(); 
       }
     });
 
-    // 4. CLEANUP (Limpeza)
+    // 4. CLEANUP 
     return () => {
       socket.off('nova_ocorrencia');
       socket.off('ocorrencia_atualizada');
@@ -192,7 +191,7 @@ export const MinhasOcorrencias = () => {
         {ocorrenciaAtual ? (
           <Card 
             style={tw`bg-orange-50 border-orange-200 border shadow-sm p-5`}
-            onPress={() => navigation.navigate('DetalhePendente', { id: ocorrenciaAtual.id_ocorrencia })}
+            onPress={() => navigation.navigate('DetalheAndamento', { id: ocorrenciaAtual.id_ocorrencia })}
           >
             <View style={tw`flex-row justify-between items-center mb-3`}>
               <Text style={tw`text-sm font-bold text-slate-700`}>
@@ -215,7 +214,7 @@ export const MinhasOcorrencias = () => {
 
             <TouchableOpacity 
               style={tw`bg-orange-400 py-3 rounded-lg items-center shadow-sm`}
-              onPress={() => navigation.navigate('DetalhePendente', { id: ocorrenciaAtual.id_ocorrencia })}
+              onPress={() => navigation.navigate('DetalheAndamento', { id: ocorrenciaAtual.id_ocorrencia })}
             >
               <Text style={tw`text-white font-bold text-sm uppercase tracking-wide`}>
                 Ver Detalhes / Atualizar

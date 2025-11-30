@@ -265,10 +265,16 @@ export const DetalheAndamentoScreen = () => {
 
   const handleAction = async (action: 'FOTO' | 'VIDEO' | 'ASSINATURA' | 'VITIMA') => {
     if (!ocorrencia) return;
-    if (action === 'FOTO') handleCameraUpload();
-    else if (action === 'VIDEO') Alert.alert("Em breve", "Gravação de vídeo será implementada.");
-    else if (action === 'ASSINATURA') Alert.alert("Em breve", "Tela de assinatura em desenvolvimento.");
-    else if (action === 'VITIMA') navigation.navigate('RegistrarVitima', { ocorrenciaId: ocorrencia.id_ocorrencia });
+
+    if (action === 'FOTO') {
+      handleCameraUpload();
+    } else if (action === 'VIDEO') {
+      Alert.alert("Em breve", "Gravação de vídeo será implementada.");
+    } else if (action === 'ASSINATURA') {
+      navigation.navigate('ColetarAssinatura', { ocorrenciaId: ocorrencia.id_ocorrencia });
+    } else if (action === 'VITIMA') {
+      navigation.navigate('RegistrarVitima', { ocorrenciaId: ocorrencia.id_ocorrencia });
+    }
   };
 
   const handleCameraUpload = async () => {

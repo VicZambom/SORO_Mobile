@@ -9,6 +9,9 @@ import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { MinhasOcorrencias } from '../screens/MinhasOcorrenciasScreen'; 
 import { DetalhePendenteScreen } from '../screens/DetalhePendenteScreen';
+import { DetalheAndamentoScreen } from '../screens/DetalheAndamentoScreen';
+import { RegistrarVitimaScreen } from '../screens/RegistrarVitimaScreen';
+import { ColetarAssinaturaScreen } from '../screens/ColetarAssinaturaScreen';
 import { NovaOcorrenciaScreen } from '../screens/NovaOcorrenciaScreen';
 import { PerfilScreen } from '../screens/PerfilScreen';
 import { SobreScreen } from '../screens/SobreScreen';
@@ -39,6 +42,9 @@ const AppNavigator: React.FC = () => {
           <>
             <Stack.Screen name="MinhasOcorrencias" component={MinhasOcorrencias} />
             <Stack.Screen name="DetalhePendente" component={DetalhePendenteScreen} />
+            <Stack.Screen name="DetalheAndamento" component={DetalheAndamentoScreen} />
+            <Stack.Screen name="RegistrarVitima" component={RegistrarVitimaScreen} />
+            <Stack.Screen name="ColetarAssinatura" component={ColetarAssinaturaScreen} />
             <Stack.Screen name="NovaOcorrencia" component={NovaOcorrenciaScreen} />
             <Stack.Screen name="Perfil" component={PerfilScreen} />
             <Stack.Screen name="Sobre" component= {SobreScreen} />
