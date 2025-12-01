@@ -238,8 +238,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         id_subgrupo_fk: form.subgrupoId,
         id_bairro_fk: form.bairroId,
         id_forma_acervo_fk: form.formaAcervoId,
-        nr_aviso: form.nrAviso || null,
-        // Campos adicionais
+        nr_aviso: form.nrAviso || undefined,
         observacoes: form.observacoes, 
         localizacao: {
            logradouro: form.logradouro,
@@ -254,8 +253,20 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         { text: "Voltar ao Início", onPress: () => navigation.navigate('MinhasOcorrencias') }
       ]);
 
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error.response) {
+        console.error('Erro Backend:', error.response.status, error.response.data);
+        
+        // Se for erro de validação (400), mostre o primeiro erro
+        if (error.response.status === 400 && Array.isArray(error.response.data)) {
+           const msg = error.response.data[0].message;
+           Alert.alert("Erro de Validação", msg);
+           return;
+        }
+      } else {
+        console.error('Erro de Rede/Código:', error);
+      }
+
       Alert.alert("Erro", "Não foi possível criar a ocorrência. Tente novamente.");
     } finally {
       setLoadingSubmit(false);

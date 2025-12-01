@@ -75,12 +75,13 @@ export const DetalhePendenteScreen: React.FC = () => {
     if (!ocorrencia) return;
     setUpdating(true);
     try {
-      // Atualiza o status no backend
       await api.put(`/api/v2/ocorrencias/${ocorrencia.id_ocorrencia}`, {
         status_situacao: novoStatus,
+        relacionado_eleicao: false, 
+        data_execucao_servico: null, 
+        nr_aviso: ocorrencia.nr_aviso 
       });
-
-      // Atualiza localmente para refletir na UI imediatamente
+      
       setOcorrencia((prev) => prev ? { ...prev, status_situacao: novoStatus } : null);
 
       if (novoStatus === 'EM_ANDAMENTO') {
@@ -90,9 +91,19 @@ export const DetalhePendenteScreen: React.FC = () => {
         navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
       }
 
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      Alert.alert('Erro', 'Falha ao atualizar o status. Tente novamente.');
+    } catch (error: any) {
+      if (error.response) {
+         console.error('Erro Backend:', error.response.data);
+         // Se for erro de validação, alerta o usuário
+         if (error.response.status === 400 && Array.isArray(error.response.data)) {
+            Alert.alert('Erro de Validação', error.response.data[0].message);
+         } else {
+            Alert.alert('Erro', 'Falha ao atualizar o status.');
+         }
+      } else {
+         console.error('Erro de conexão:', error);
+         Alert.alert('Erro', 'Falha de conexão.');
+      }
     } finally {
       setUpdating(false);
     }
