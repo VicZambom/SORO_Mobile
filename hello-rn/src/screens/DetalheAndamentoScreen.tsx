@@ -26,13 +26,13 @@ interface OcorrenciaFull {
   hora_acionamento: string;
   subgrupo: {
     descricao_subgrupo: string;
-    grupo: {
-      natureza: { descricao: string };
+    grupo?: { 
+      natureza?: { descricao: string }; 
     };
   };
   bairro: {
     nome_bairro: string;
-    municipio: { nome_municipio: string };
+    municipio?: { nome_municipio: string };
   };
   forma_acervo: { descricao: string };
   localizacao?: {
@@ -78,7 +78,7 @@ const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
         <View style={tw`flex-row flex-wrap`}>
           <View style={tw`w-1/2 mb-4`}>
             <Text style={tw`text-xs text-slate-400 uppercase`}>Natureza</Text>
-            <Text style={tw`text-sm font-bold text-slate-800`}>{ocorrencia.subgrupo.grupo.natureza.descricao}</Text>
+            <Text style={tw`text-sm font-bold text-slate-800`}>{ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}</Text>
           </View>
           <View style={tw`w-1/2 mb-4`}>
             <Text style={tw`text-xs text-slate-400 uppercase`}>Subgrupo</Text>
@@ -377,7 +377,7 @@ export const DetalheAndamentoScreen = () => {
                     {ocorrencia.localizacao?.logradouro || 'Logradouro não informado'}
                 </Text>
                 <Text style={tw`text-sm text-slate-600 font-medium`}>
-                    {ocorrencia.bairro.nome_bairro}, {ocorrencia.bairro.municipio.nome_municipio}
+                    {ocorrencia.bairro.nome_bairro}, {ocorrencia.bairro.municipio?.nome_municipio || 'PE'}
                 </Text>
             </View>
             <View style={tw`w-16 h-16 bg-blue-100 rounded-xl border border-slate-200 items-center justify-center overflow-hidden shadow-sm`}>

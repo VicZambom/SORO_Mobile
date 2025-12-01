@@ -81,7 +81,7 @@ export const DetalhePendenteScreen: React.FC = () => {
         data_execucao_servico: null, 
         nr_aviso: ocorrencia.nr_aviso 
       });
-      
+
       setOcorrencia((prev) => prev ? { ...prev, status_situacao: novoStatus } : null);
 
       if (novoStatus === 'EM_ANDAMENTO') {
@@ -113,16 +113,20 @@ export const DetalhePendenteScreen: React.FC = () => {
     if (!ocorrencia) return;
 
     if (ocorrencia.status_situacao === 'PENDENTE') {
-      // Iniciar Deslocamento -> Muda para EM_ANDAMENTO
       handleStatusUpdate('EM_ANDAMENTO');
+      
     } else if (ocorrencia.status_situacao === 'EM_ANDAMENTO') {
-      // Registrar Chegada
       Alert.alert(
         "Registrar Chegada",
-        "Deseja confirmar a chegada ao local?",
+        "Confirma a chegada da viatura ao local da ocorrência?",
         [
           { text: "Cancelar", style: "cancel" },
-          { text: "Confirmar", onPress: () => console.log("Chegada registrada (Lógica a implementar)") }
+          { 
+            text: "Confirmar Chegada", 
+            onPress: () => {
+              navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
+            } 
+          }
         ]
       );
     }
