@@ -1,10 +1,16 @@
 // src/services/api.ts
 import axios from 'axios';
+import Constants from 'expo-constants';
+
+const apiUrl = Constants.expoConfig?.extra?.apiUrl;
+
+if (!apiUrl) {
+  console.warn('API_URL não definida no app.config.ts!');
+}
 
 const api = axios.create({
-  // URL encontrada na sua documentação PDF
-  baseURL: 'https://api-bombeiros-s-o-r-o.onrender.com', 
-  timeout: 10000, // 10 segundos antes de desistir
+  baseURL: apiUrl,
+  timeout: 10000,
 });
 
 // Interceptador para debug (opcional, mas ajuda muito a ver erros)
