@@ -1,6 +1,7 @@
 // src/context/SocketContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 import { useAuth } from './AuthContext';
 
 interface SocketContextData {
@@ -10,21 +11,19 @@ interface SocketContextData {
 
 const SocketContext = createContext<SocketContextData>({} as SocketContextData);
 
-// URL da sua API 
-const SOCKET_URL = 'https://api-bombeiros-s-o-r-o.onrender.com';
+const socketUrl = Constants.expoConfig?.extra?.apiUrl || '';
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
-  const { signed } = useAuth(); // Só conectamos se o usuário estiver logado
+  const { signed } = useAuth();
 
   useEffect(() => {
     let socketInstance: Socket | null = null;
 
-    if (signed) {
-      // Inicializa a conexão
-      socketInstance = io(SOCKET_URL, {
-        transports: ['websocket'], // Força websocket para melhor performance
+    if (signed && socketUrl) {
+      socketInstance = io(socketUrl, {
+        transports: ['websocket'],
         reconnection: true,
       });
 
@@ -40,15 +39,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setSocket(socketInstance);
     } else {
-      // Se deslogar, desconecta o socket existente
       if (socket) {
         socket.disconnect();
         setSocket(null);
         setConnected(false);
       }
     }
-
-    // Cleanup ao desmontar
+    
     return () => {
       if (socketInstance) {
         socketInstance.disconnect();
