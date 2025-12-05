@@ -10,6 +10,8 @@ import tw from 'twrnc';
 
 import api from '../services/api';
 import { AppNavigationProp } from '../types/navigation';
+import { useSync } from '../context/SyncContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- TIPOS ---
 interface Option {
@@ -147,6 +149,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 // --- TELA PRINCIPAL ---
 export const NovaOcorrenciaScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigationProp>();
+  const { isOnline, addToQueue } = useSync();
   const [step, setStep] = useState(1);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
 
@@ -176,21 +179,53 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [resNat, resBai, resFor] = await Promise.all([
-          api.get('/api/v2/naturezas'),
-          api.get('/api/v2/bairros'),
-          api.get('/api/v2/formas-acervo')
-        ]);
-        setNaturezas(resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao })));
-        setBairros(resBai.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro })));
-        setFormas(resFor.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao })));
+        // Tenta buscar da API (Online)
+        if (isOnline) {
+          const [resNat, resBai, resFor] = await Promise.all([
+            api.get('/api/v2/naturezas'),
+            api.get('/api/v2/bairros'),
+            api.get('/api/v2/formas-acervo')
+          ]);
+
+          // Formata os dados
+          const naturezasData = resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao }));
+          const bairrosData = resBai.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro }));
+          const formasData = resFor.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao }));
+
+          // Atualiza o Estado
+          setNaturezas(naturezasData);
+          setBairros(bairrosData);
+          setFormas(formasData);
+
+          // Salva no Cache para uso offline futuro
+          await AsyncStorage.setItem('@SORO:cache_naturezas', JSON.stringify(naturezasData));
+          await AsyncStorage.setItem('@SORO:cache_bairros', JSON.stringify(bairrosData));
+          await AsyncStorage.setItem('@SORO:cache_formas', JSON.stringify(formasData));
+        
+        } else {
+          // Se estiver Offline, força o erro para cair no catch e pegar do cache
+          throw new Error('Offline');
+        }
+
       } catch (error) {
-        console.error(error);
-        Alert.alert('Erro', 'Falha ao carregar listas. Verifique sua conexão.');
+        console.log('Modo Offline: Carregando listas do cache...');
+        
+        // Tenta recuperar do Cache
+        const cachedNat = await AsyncStorage.getItem('@SORO:cache_naturezas');
+        const cachedBai = await AsyncStorage.getItem('@SORO:cache_bairros');
+        const cachedFor = await AsyncStorage.getItem('@SORO:cache_formas');
+
+        if (cachedNat) setNaturezas(JSON.parse(cachedNat));
+        if (cachedBai) setBairros(JSON.parse(cachedBai));
+        if (cachedFor) setFormas(JSON.parse(cachedFor));
+        
+        if (!cachedNat && !cachedBai) {
+             Alert.alert('Aviso', 'Sem dados locais. Conecte-se uma vez para baixar as listas.');
+        }
       }
     };
     loadInitialData();
-  }, []);
+  }, [isOnline]);
 
   // Lógica de Cascata
   const handleSelectNatureza = async (item: Option) => {
@@ -198,13 +233,27 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setLabels(prev => ({ ...prev, natureza: item.label, grupo: '', subgrupo: '' }));
     
     setLoadingList(true);
+    const cacheKey = `@SORO:cache_grupos_${item.id}`; // Chave única por natureza
+
     try {
-       const res = await api.get('/api/v2/grupos'); 
-       const filtered = res.data
-         .filter((g: any) => g.id_natureza_fk === item.id)
-         .map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
-       setGrupos(filtered);
-    } catch (err) { console.log(err); }
+       if (isOnline) {
+          const res = await api.get('/api/v2/grupos'); 
+          const filtered = res.data
+            .filter((g: any) => g.id_natureza_fk === item.id)
+            .map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
+          
+          setGrupos(filtered);
+          // Salva essa lista específica no cache
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(filtered));
+       } else {
+          throw new Error('Offline');
+       }
+    } catch (err) { 
+       // Recupera do cache se der erro ou estiver offline
+       const cached = await AsyncStorage.getItem(cacheKey);
+       if (cached) setGrupos(JSON.parse(cached));
+       else Alert.alert('Offline', 'Não há grupos salvos para esta natureza.');
+    }
     setLoadingList(false);
   };
 
@@ -213,13 +262,25 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setLabels(prev => ({ ...prev, grupo: item.label, subgrupo: '' }));
 
     setLoadingList(true);
+    const cacheKey = `@SORO:cache_subgrupos_${item.id}`; // Chave única por grupo
+
     try {
-       const res = await api.get('/api/v2/subgrupos'); 
-       const filtered = res.data
-         .filter((s: any) => s.id_grupo_fk === item.id)
-         .map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
-       setSubgrupos(filtered);
-    } catch (err) { console.log(err); }
+       if (isOnline) {
+          const res = await api.get('/api/v2/subgrupos'); 
+          const filtered = res.data
+            .filter((s: any) => s.id_grupo_fk === item.id)
+            .map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
+          
+          setSubgrupos(filtered);
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(filtered));
+       } else {
+          throw new Error('Offline');
+       }
+    } catch (err) { 
+       const cached = await AsyncStorage.getItem(cacheKey);
+       if (cached) setSubgrupos(JSON.parse(cached));
+       else Alert.alert('Offline', 'Não há subgrupos salvos para este grupo.');
+    }
     setLoadingList(false);
   };
 
@@ -231,49 +292,50 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     }
 
     setLoadingSubmit(true);
+
+    const payload = {
+      data_acionamento: form.data.toISOString(),
+      hora_acionamento: form.hora.toISOString(),
+      id_subgrupo_fk: form.subgrupoId,
+      id_bairro_fk: form.bairroId,
+      id_forma_acervo_fk: form.formaAcervoId,
+      nr_aviso: form.nrAviso || undefined,
+      observacoes: form.observacoes, 
+      localizacao: {
+          logradouro: form.logradouro,
+          latitude: -8.0476, 
+          longitude: -34.8770
+      }
+    };
+
     try {
-      const payload = {
-        data_acionamento: form.data.toISOString(),
-        hora_acionamento: form.hora.toISOString(),
-        id_subgrupo_fk: form.subgrupoId,
-        id_bairro_fk: form.bairroId,
-        id_forma_acervo_fk: form.formaAcervoId,
-        nr_aviso: form.nrAviso || undefined,
-        observacoes: form.observacoes, 
-        localizacao: {
-           logradouro: form.logradouro,
-           latitude: -8.0476, // GPS virá
-           longitude: -34.8770
-        }
-      };
-
-      await api.post('/api/v2/ocorrencias', payload);
-      
-      Alert.alert("Ocorrência Criada!", "Os dados foram enviados com sucesso.", [
-        { text: "Voltar ao Início", onPress: () => navigation.navigate('MinhasOcorrencias') }
-      ]);
-
-    } catch (error: any) {
-      if (error.response) {
-        console.error('Erro Backend:', error.response.status, error.response.data);
+      if (isOnline) {
+        // --- CENÁRIO ONLINE: Envia direto para API ---
+        await api.post('/api/v2/ocorrencias', payload);
         
-        // Se for erro de validação (400), mostre o primeiro erro
-        if (error.response.status === 400 && Array.isArray(error.response.data)) {
-           const msg = error.response.data[0].message;
-           Alert.alert("Erro de Validação", msg);
-           return;
-        }
+        Alert.alert("Sucesso!", "Ocorrência enviada para a central.", [
+          { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
+        ]);
       } else {
-        console.error('Erro de Rede/Código:', error);
+
+        // --- CENÁRIO OFFLINE: Salva na Fila ---
+        await addToQueue(payload);
+        
+        navigation.navigate('MinhasOcorrencias');
       }
 
-      Alert.alert("Erro", "Não foi possível criar a ocorrência. Tente novamente.");
+    } catch (error: any) {
+      console.error(error);
+      if (isOnline && error.response) {
+         Alert.alert("Erro no Envio", "O servidor recusou os dados. Verifique o preenchimento.");
+      } else {
+         Alert.alert("Erro", "Falha inesperada ao processar a ocorrência.");
+      }
     } finally {
       setLoadingSubmit(false);
     }
   };
 
-  // Conteúdo das Etapas
   const renderStepContent = () => {
     switch (step) {
       case 1:
@@ -284,13 +346,17 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             <SelectInput label="Grupo" placeholder="Selecione..." value={labels.grupo} onPress={() => setModalType('grupo')} disabled={!form.naturezaId} />
             <SelectInput label="Subgrupo" placeholder="Selecione..." value={labels.subgrupo} onPress={() => setModalType('subgrupo')} disabled={!form.grupoId} />
             
-            <View style={tw`mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex-row items-start`}>
-               <WifiOff size={20} color="#ca8a04" style={tw`mr-3 mt-1`} />
-               <View style={tw`flex-1`}>
-                 <Text style={tw`text-yellow-800 font-bold text-sm`}>Modo Offline</Text>
-                 <Text style={tw`text-yellow-700 text-xs mt-1`}>Registro será salvo localmente e sincronizado depois.</Text>
-               </View>
-            </View>
+            {!isOnline && (
+              <View style={tw`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex-row items-start`}>
+                 <WifiOff size={20} color="#ca8a04" style={tw`mr-3 mt-1`} />
+                 <View style={tw`flex-1`}>
+                   <Text style={tw`text-yellow-800 font-bold text-sm`}>Você está Offline</Text>
+                   <Text style={tw`text-yellow-700 text-xs mt-1`}>
+                     O registro será salvo no dispositivo e enviado automaticamente quando a conexão retornar.
+                   </Text>
+                 </View>
+              </View>
+            )}
           </>
         );
       case 2:

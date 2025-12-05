@@ -2,17 +2,19 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native';
 import tw from 'twrnc';
-import { ArrowLeft, User as UserIcon, Mail, BadgeInfo, Moon, Bell, CloudOff, 
+import { ArrowLeft, User as UserIcon, Mail, BadgeInfo, Moon, Bell, CloudOff, Cloud, 
   ChevronRight, LogOut, IdCard, MapPin } from 'lucide-react-native';
 import { ScreenWrapper } from '../components/ScreenWrapper';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AppNavigationProp } from '../types/navigation';
+import { useSync } from '../context/SyncContext';
 
 export const PerfilScreen = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const { user, signOut } = useAuth();
-  
+  const { pendingQueue, syncNow, isOnline } = useSync();
+
   // Dados de estado da UI
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(true);
   const [temaEscuroAtivo, setTemaEscuroAtivo] = useState(false);
@@ -27,11 +29,6 @@ export const PerfilScreen = () => {
         { text: "Sair", style: "destructive", onPress: signOut }
       ]
     );
-  };
-
-  const handleSincronizar = () => {
-    console.log('Sincronização forçada!');
-    Alert.alert('Info', 'Sincronização simulada com sucesso.');
   };
 
   return (
@@ -107,30 +104,42 @@ export const PerfilScreen = () => {
           </View>
         </View>
 
-        {/* STATUS DO SISTEMA*/}
+        {/* STATUS DO SISTEMA */}
         <Text style={tw`text-xs font-bold text-slate-500 mb-2 px-1 mt-2 uppercase`}>
-          Sincronização
+          Sincronização e Rede
         </Text>
 
         <View style={tw`bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden`}>
           <View style={tw`flex-row items-center p-4`}>
-            <CloudOff size={28} color="#475569" />
+            {isOnline ? (
+              <Cloud size={28} color="#10B981" /> // Verde se online
+            ) : (
+              <CloudOff size={28} color="#EF4444" /> // Vermelho se offline
+            )}
+            
             <View style={tw`ml-4 flex-1`}>
               <Text style={tw`text-base font-bold text-slate-900`}>
-                Dados Offline
+                {isOnline ? 'Online' : 'Offline'}
               </Text>
               <Text style={tw`text-slate-500 text-xs`}>
-                Você tem 3 registros aguardando envio.
+                {pendingQueue.length > 0 
+                  ? `Você tem ${pendingQueue.length} registro(s) aguardando envio.`
+                  : 'Todos os dados estão sincronizados.'}
               </Text>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={tw`bg-slate-800 py-3 items-center`}
-            onPress={handleSincronizar}
-          >
-            <Text style={tw`text-white font-bold text-sm tracking-wide`}>FORÇAR ENVIO AGORA</Text>
-          </TouchableOpacity>
+          {/* Botão só aparece se houver pendências */}
+          {pendingQueue.length > 0 && (
+            <TouchableOpacity
+              style={tw`bg-slate-800 py-3 items-center`}
+              onPress={syncNow} 
+            >
+              <Text style={tw`text-white font-bold text-sm tracking-wide`}>
+                {isOnline ? 'SINCRONIZAR AGORA' : 'AGUARDANDO CONEXÃO...'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* PREFERÊNCIAS */}
