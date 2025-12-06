@@ -80,11 +80,13 @@ export const MinhasOcorrencias = () => {
 
     // --- CANAL 1: NOVA OCORRÊNCIA ---
     socket.on('nova_ocorrencia', (novaOcorrencia: OcorrenciaAPI) => {
-      console.log('⚡ Socket: Nova ocorrência recebida:', novaOcorrencia);
-
-      // Lógica de Estado
-      setFilaDeEspera((prevLista) => [novaOcorrencia, ...prevLista]);
-      Alert.alert('Nova Ocorrência', `Tipo: ${novaOcorrencia.subgrupo?.descricao_subgrupo}`);
+      setFilaDeEspera((prevLista) => {
+        // Verifica se já existe na lista para evitar duplicação
+        if (prevLista.some(item => item.id_ocorrencia === novaOcorrencia.id_ocorrencia)) {
+          return prevLista;
+        }
+        return [novaOcorrencia, ...prevLista];
+      });
     });
 
     // --- CANAL 2: OCORRÊNCIA ATUALIZADA ---

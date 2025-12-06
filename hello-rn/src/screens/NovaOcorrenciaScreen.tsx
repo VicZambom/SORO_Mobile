@@ -1,14 +1,15 @@
-// src/screens/NovaOcorrenciaScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { ScrollView, Text, View, TouchableOpacity, KeyboardAvoidingView, 
   Platform, Modal, FlatList, ActivityIndicator, Alert, TextInput 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronDown, X, Check, MapPin, WifiOff } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, X, Check, MapPin, WifiOff, RefreshCw } from 'lucide-react-native';
 import tw from 'twrnc';
+import * as Location from 'expo-location';
 
 import api from '../services/api';
+import { AxiosError } from 'axios'; // Importação para tipagem de erro
 import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -175,11 +176,14 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   const [modalType, setModalType] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(false);
 
+  // Geolocalização
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [loadingLoc, setLoadingLoc] = useState(false);
+
   // Carga Inicial
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Tenta buscar da API (Online)
         if (isOnline) {
           const [resNat, resBai, resFor] = await Promise.all([
             api.get('/api/v2/naturezas'),
@@ -187,30 +191,22 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             api.get('/api/v2/formas-acervo')
           ]);
 
-          // Formata os dados
           const naturezasData = resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao }));
           const bairrosData = resBai.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro }));
           const formasData = resFor.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao }));
 
-          // Atualiza o Estado
           setNaturezas(naturezasData);
           setBairros(bairrosData);
           setFormas(formasData);
 
-          // Salva no Cache para uso offline futuro
           await AsyncStorage.setItem('@SORO:cache_naturezas', JSON.stringify(naturezasData));
           await AsyncStorage.setItem('@SORO:cache_bairros', JSON.stringify(bairrosData));
           await AsyncStorage.setItem('@SORO:cache_formas', JSON.stringify(formasData));
-        
         } else {
-          // Se estiver Offline, força o erro para cair no catch e pegar do cache
           throw new Error('Offline');
         }
-
       } catch (error) {
         console.log('Modo Offline: Carregando listas do cache...');
-        
-        // Tenta recuperar do Cache
         const cachedNat = await AsyncStorage.getItem('@SORO:cache_naturezas');
         const cachedBai = await AsyncStorage.getItem('@SORO:cache_bairros');
         const cachedFor = await AsyncStorage.getItem('@SORO:cache_formas');
@@ -220,7 +216,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         if (cachedFor) setFormas(JSON.parse(cachedFor));
         
         if (!cachedNat && !cachedBai) {
-             Alert.alert('Aviso', 'Sem dados locais. Conecte-se uma vez para baixar as listas.');
+           Alert.alert('Aviso', 'Sem dados locais. Conecte-se uma vez para baixar as listas.');
         }
       }
     };
@@ -233,8 +229,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setLabels(prev => ({ ...prev, natureza: item.label, grupo: '', subgrupo: '' }));
     
     setLoadingList(true);
-    const cacheKey = `@SORO:cache_grupos_${item.id}`; // Chave única por natureza
-
+    const cacheKey = `@SORO:cache_grupos_${item.id}`; 
     try {
        if (isOnline) {
           const res = await api.get('/api/v2/grupos'); 
@@ -243,13 +238,11 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             .map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
           
           setGrupos(filtered);
-          // Salva essa lista específica no cache
           await AsyncStorage.setItem(cacheKey, JSON.stringify(filtered));
        } else {
           throw new Error('Offline');
        }
     } catch (err) { 
-       // Recupera do cache se der erro ou estiver offline
        const cached = await AsyncStorage.getItem(cacheKey);
        if (cached) setGrupos(JSON.parse(cached));
        else Alert.alert('Offline', 'Não há grupos salvos para esta natureza.');
@@ -262,7 +255,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setLabels(prev => ({ ...prev, grupo: item.label, subgrupo: '' }));
 
     setLoadingList(true);
-    const cacheKey = `@SORO:cache_subgrupos_${item.id}`; // Chave única por grupo
+    const cacheKey = `@SORO:cache_subgrupos_${item.id}`;
 
     try {
        if (isOnline) {
@@ -284,6 +277,31 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setLoadingList(false);
   };
 
+  // Função de Geolocalização
+  const handleGetLocation = async () => {
+    setLoadingLoc(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'Precisamos de acesso à localização.');
+        return;
+      }
+
+      // Obtém posição atual com precisão balanceada
+      let currentLocation = await Location.getCurrentPositionAsync({
+         accuracy: Location.Accuracy.Balanced
+      });
+      setLocation(currentLocation);
+      
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Erro', 'Não foi possível obter a localização. Verifique se o GPS está ativo.');
+    } finally {
+      setLoadingLoc(false);
+    }
+  };
+
   // Enviar Dados
   const handleSubmit = async () => {
     if (!form.subgrupoId || !form.bairroId || !form.formaAcervoId) {
@@ -303,31 +321,31 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       observacoes: form.observacoes, 
       localizacao: {
           logradouro: form.logradouro,
-          latitude: -8.0476, 
-          longitude: -34.8770
+          // Usa dados reais se disponíveis, senão undefined ou null
+          latitude: location?.coords.latitude || null, 
+          longitude: location?.coords.longitude || null
       }
     };
 
     try {
       if (isOnline) {
-        // --- CENÁRIO ONLINE: Envia direto para API ---
         await api.post('/api/v2/ocorrencias', payload);
-        
         Alert.alert("Sucesso!", "Ocorrência enviada para a central.", [
           { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
         ]);
       } else {
-
-        // --- CENÁRIO OFFLINE: Salva na Fila ---
         await addToQueue(payload);
-        
         navigation.navigate('MinhasOcorrencias');
       }
 
-    } catch (error: any) {
-      console.error(error);
-      if (isOnline && error.response) {
-         Alert.alert("Erro no Envio", "O servidor recusou os dados. Verifique o preenchimento.");
+    } catch (error: unknown) {
+      const err = error as AxiosError; // Tipagem segura do erro
+      console.error(err);
+      
+      if (isOnline && err.response) {
+         // Tenta pegar mensagem de erro do backend se existir
+         const msg = (err.response.data as any)?.error || "O servidor recusou os dados.";
+         Alert.alert("Erro no Envio", msg);
       } else {
          Alert.alert("Erro", "Falha inesperada ao processar a ocorrência.");
       }
@@ -364,21 +382,41 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           <>
             <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Localização</Text>
             
-            {/* Botão GPS e Mapa Fake */}
+            {/* Botão GPS */}
             <TouchableOpacity 
-              style={tw`bg-blue-50 py-3 rounded-xl border border-blue-200 flex-row items-center justify-center mb-4`}
+              style={[
+                tw`py-3 rounded-xl border flex-row items-center justify-center mb-4`,
+                location ? tw`bg-green-50 border-green-200` : tw`bg-blue-50 border-blue-200`
+              ]}
               activeOpacity={0.7}
+              onPress={handleGetLocation}
+              disabled={loadingLoc}
             >
-               <MapPin size={20} color="#2563eb" style={tw`mr-2`} />
-               <Text style={tw`text-blue-600 font-bold`}>Usar Localização Atual (GPS)</Text>
+               {loadingLoc ? (
+                  <ActivityIndicator size="small" color="#2563eb" />
+               ) : location ? (
+                  <>
+                     <Check size={20} color="#16a34a" style={tw`mr-2`} />
+                     <Text style={tw`text-green-700 font-bold`}>Localização Obtida</Text>
+                  </>
+               ) : (
+                  <>
+                     <MapPin size={20} color="#2563eb" style={tw`mr-2`} />
+                     <Text style={tw`text-blue-600 font-bold`}>Usar Localização Atual (GPS)</Text>
+                  </>
+               )}
             </TouchableOpacity>
 
-            <View style={tw`h-40 bg-slate-200 rounded-xl mb-6 border border-slate-300 items-center justify-center overflow-hidden`}>
-               {/* Aqui viria o <MapView /> */}
-               <MapPin size={40} color="#94a3b8" />
-               <View style={tw`bg-white px-3 py-1 rounded-full shadow mt-2`}>
-                  <Text style={tw`text-xs font-bold text-slate-700`}>Boa Viagem, Recife</Text>
-               </View>
+            {/* Visualização de Mapa (Placeholder) */}
+            <View style={tw`h-40 bg-slate-200 rounded-xl mb-6 border border-slate-300 items-center justify-center overflow-hidden relative`}>
+               <MapPin size={40} color={location ? "#ef4444" : "#94a3b8"} />
+               {location && (
+                  <View style={tw`absolute bottom-2 bg-white/90 px-3 py-1 rounded-full shadow`}>
+                    <Text style={tw`text-[10px] font-bold text-slate-700`}>
+                      Lat: {location.coords.latitude.toFixed(4)}, Lon: {location.coords.longitude.toFixed(4)}
+                    </Text>
+                  </View>
+               )}
             </View>
 
             <View style={tw`mb-4`}>
@@ -470,7 +508,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         <TouchableOpacity 
           style={[
             tw`py-4 rounded-xl items-center shadow-sm flex-row justify-center`,
-            step === 3 ? tw`bg-[#10B981]` : tw`bg-[#061C43]` // Verde Vibrante ou Azul Escuro
+            step === 3 ? tw`bg-[#10B981]` : tw`bg-[#061C43]`
           ]}
           onPress={() => step < 3 ? setStep(step + 1) : handleSubmit()}
           disabled={loadingSubmit}
