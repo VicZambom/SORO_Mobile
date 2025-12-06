@@ -4,26 +4,29 @@ import Constants from 'expo-constants';
 
 const apiUrl = Constants.expoConfig?.extra?.apiUrl;
 
+console.log('🔗 API URL Configurada:', apiUrl);
+
 if (!apiUrl) {
   console.warn('API_URL não definida no app.config.ts!');
 }
 
 const api = axios.create({
   baseURL: apiUrl,
-  timeout: 10000,
+  timeout: 30000, 
 });
 
-// Interceptador para debug (opcional, mas ajuda muito a ver erros)
+// Interceptador para debug
 api.interceptors.response.use(
   response => response,
   error => {
     if (error.response) {
-      console.log('Erro na API:', error.response.data);
-      console.log('Status:', error.response.status);
+      // O servidor respondeu com um status de erro (ex: 401, 404, 500)
+      console.log(' Erro na API (Response):', error.response.status, error.response.data);
     } else if (error.request) {
-      console.log('Erro de conexão: Sem resposta do servidor');
+      // A requisição foi feita mas não houve resposta 
+      console.log(' Erro de Conexão (Sem resposta):', error.message);
     } else {
-      console.log('Erro:', error.message);
+      console.log(' Erro Config:', error.message);
     }
     return Promise.reject(error);
   }

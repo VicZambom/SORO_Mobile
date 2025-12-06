@@ -1,44 +1,46 @@
+// src/screens/NovaOcorrenciaScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { ScrollView, Text, View, TouchableOpacity, KeyboardAvoidingView, 
   Platform, Modal, FlatList, ActivityIndicator, Alert, TextInput 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronDown, X, Check, MapPin, WifiOff, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, X, Check, MapPin, WifiOff } from 'lucide-react-native';
 import tw from 'twrnc';
 import * as Location from 'expo-location';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
 import api from '../services/api';
-import { AxiosError } from 'axios'; // Importação para tipagem de erro
+import { AxiosError } from 'axios';
 import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// --- TIPOS ---
+// --- SCHEMA DE VALIDAÇÃO (ZOD) ---
+const ocorrenciaSchema = z.object({
+  naturezaId: z.string().min(1, "Selecione uma natureza"),
+  grupoId: z.string().min(1, "Selecione um grupo"),
+  subgrupoId: z.string().min(1, "Selecione um subgrupo"),
+  bairroId: z.string().min(1, "Selecione o bairro"),
+  logradouro: z.string().optional(),
+  formaAcervoId: z.string().min(1, "Selecione a forma de acionamento"),
+  nrAviso: z.string().optional(),
+  observacoes: z.string().optional(),
+});
+
+// Inferência do tipo TypeScript a partir do schema
+type OcorrenciaFormData = z.infer<typeof ocorrenciaSchema>;
+
+// --- TIPOS AUXILIARES ---
 interface Option {
   id: string;
   label: string;
 }
 
-interface FormData {
-  // Etapa 1
-  naturezaId: string;
-  grupoId: string;
-  subgrupoId: string;
-  // Etapa 2
-  bairroId: string;
-  logradouro: string;
-  // Etapa 3
-  data: Date;
-  hora: Date;
-  formaAcervoId: string;
-  nrAviso: string;
-  observacoes: string; 
-}
-
 // --- COMPONENTES INTERNOS ---
-
-// Modal de Seleção
 const SelectionModal = ({ 
   visible, onClose, title, options, onSelect, loading 
 }: { 
@@ -83,14 +85,13 @@ const SelectionModal = ({
   </Modal>
 );
 
-// Input Select
-const SelectInput = ({ label, value, placeholder, onPress, disabled = false }: any) => (
+const SelectInput = ({ label, value, placeholder, onPress, disabled = false, error }: any) => (
   <View style={tw`mb-4`}>
     <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>{label}</Text>
     <TouchableOpacity 
       style={[
         tw`flex-row justify-between items-center bg-white border rounded-xl p-4 h-14`,
-        disabled ? tw`bg-gray-50 border-gray-200` : tw`border-gray-300`
+        disabled ? tw`bg-gray-50 border-gray-200` : (error ? tw`border-red-500` : tw`border-gray-300`)
       ]}
       onPress={onPress}
       disabled={disabled}
@@ -100,10 +101,10 @@ const SelectInput = ({ label, value, placeholder, onPress, disabled = false }: a
       </Text>
       <ChevronDown size={20} color={disabled ? "#cbd5e1" : "#64748b"} />
     </TouchableOpacity>
+    {error && <Text style={tw`text-red-500 text-xs mt-1`}>{error}</Text>}
   </View>
 );
 
-// Indicador de Passos 
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   const steps = [
     { id: 1, label: 'Tipo' },
@@ -154,13 +155,21 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   const [step, setStep] = useState(1);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
 
-  const [form, setForm] = useState<FormData>({
-    naturezaId: '', grupoId: '', subgrupoId: '',
-    bairroId: '', logradouro: '',
-    data: new Date(), hora: new Date(),
-    formaAcervoId: '', nrAviso: '', observacoes: ''
+  // React Hook Form
+  const { control, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<OcorrenciaFormData>({
+    resolver: zodResolver(ocorrenciaSchema),
+    defaultValues: {
+      logradouro: '',
+      nrAviso: '',
+      observacoes: ''
+    }
   });
 
+  // Watchers para dependências (labels e lógica de cascata)
+  const watchNatureza = watch('naturezaId');
+  const watchGrupo = watch('grupoId');
+
+  // Estado para Labels 
   const [labels, setLabels] = useState({
     natureza: '', grupo: '', subgrupo: '', bairro: '', forma: ''
   });
@@ -186,9 +195,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       try {
         if (isOnline) {
           const [resNat, resBai, resFor] = await Promise.all([
-            api.get('/api/v2/naturezas'),
-            api.get('/api/v2/bairros'),
-            api.get('/api/v2/formas-acervo')
+            api.get('/api/v1/naturezas'),
+            api.get('/api/v1/bairros'),
+            api.get('/api/v1/formas-acervo')
           ]);
 
           const naturezasData = resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao }));
@@ -203,125 +212,108 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           await AsyncStorage.setItem('@SORO:cache_bairros', JSON.stringify(bairrosData));
           await AsyncStorage.setItem('@SORO:cache_formas', JSON.stringify(formasData));
         } else {
-          throw new Error('Offline');
+          // Offline Fallback
+          const cachedNat = await AsyncStorage.getItem('@SORO:cache_naturezas');
+          const cachedBai = await AsyncStorage.getItem('@SORO:cache_bairros');
+          const cachedFor = await AsyncStorage.getItem('@SORO:cache_formas');
+
+          if (cachedNat) setNaturezas(JSON.parse(cachedNat));
+          if (cachedBai) setBairros(JSON.parse(cachedBai));
+          if (cachedFor) setFormas(JSON.parse(cachedFor));
         }
       } catch (error) {
-        console.log('Modo Offline: Carregando listas do cache...');
-        const cachedNat = await AsyncStorage.getItem('@SORO:cache_naturezas');
-        const cachedBai = await AsyncStorage.getItem('@SORO:cache_bairros');
-        const cachedFor = await AsyncStorage.getItem('@SORO:cache_formas');
-
-        if (cachedNat) setNaturezas(JSON.parse(cachedNat));
-        if (cachedBai) setBairros(JSON.parse(cachedBai));
-        if (cachedFor) setFormas(JSON.parse(cachedFor));
-        
-        if (!cachedNat && !cachedBai) {
-           Alert.alert('Aviso', 'Sem dados locais. Conecte-se uma vez para baixar as listas.');
-        }
+        console.log('Erro ao carregar listas:', error);
       }
     };
     loadInitialData();
   }, [isOnline]);
 
-  // Lógica de Cascata
+  // Carregar Grupos
   const handleSelectNatureza = async (item: Option) => {
-    setForm(prev => ({ ...prev, naturezaId: item.id, grupoId: '', subgrupoId: '' }));
+    setValue('naturezaId', item.id);
+    setValue('grupoId', ''); 
+    setValue('subgrupoId', ''); 
     setLabels(prev => ({ ...prev, natureza: item.label, grupo: '', subgrupo: '' }));
     
     setLoadingList(true);
     const cacheKey = `@SORO:cache_grupos_${item.id}`; 
     try {
        if (isOnline) {
-          const res = await api.get('/api/v2/grupos'); 
-          const filtered = res.data
-            .filter((g: any) => g.id_natureza_fk === item.id)
-            .map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
+          const res = await api.get('/api/v1/grupos', { params: { naturezaId: item.id } }); // Filtro na query
+          const mapped = res.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
           
-          setGrupos(filtered);
-          await AsyncStorage.setItem(cacheKey, JSON.stringify(filtered));
+          setGrupos(mapped);
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped));
        } else {
-          throw new Error('Offline');
+          const cached = await AsyncStorage.getItem(cacheKey);
+          if (cached) setGrupos(JSON.parse(cached));
        }
-    } catch (err) { 
-       const cached = await AsyncStorage.getItem(cacheKey);
-       if (cached) setGrupos(JSON.parse(cached));
-       else Alert.alert('Offline', 'Não há grupos salvos para esta natureza.');
-    }
+    } catch (err) { console.log(err); }
     setLoadingList(false);
   };
 
+  // Carregar Subgrupos 
   const handleSelectGrupo = async (item: Option) => {
-    setForm(prev => ({ ...prev, grupoId: item.id, subgrupoId: '' }));
+    setValue('grupoId', item.id);
+    setValue('subgrupoId', '');
     setLabels(prev => ({ ...prev, grupo: item.label, subgrupo: '' }));
 
     setLoadingList(true);
     const cacheKey = `@SORO:cache_subgrupos_${item.id}`;
-
     try {
        if (isOnline) {
-          const res = await api.get('/api/v2/subgrupos'); 
-          const filtered = res.data
-            .filter((s: any) => s.id_grupo_fk === item.id)
-            .map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
+          const res = await api.get('/api/v1/subgrupos', { params: { grupoId: item.id } }); // Filtro na query
+          const mapped = res.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
           
-          setSubgrupos(filtered);
-          await AsyncStorage.setItem(cacheKey, JSON.stringify(filtered));
+          setSubgrupos(mapped);
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped));
        } else {
-          throw new Error('Offline');
+          const cached = await AsyncStorage.getItem(cacheKey);
+          if (cached) setSubgrupos(JSON.parse(cached));
        }
-    } catch (err) { 
-       const cached = await AsyncStorage.getItem(cacheKey);
-       if (cached) setSubgrupos(JSON.parse(cached));
-       else Alert.alert('Offline', 'Não há subgrupos salvos para este grupo.');
-    }
+    } catch (err) { console.log(err); }
     setLoadingList(false);
   };
 
-  // Função de Geolocalização
   const handleGetLocation = async () => {
     setLoadingLoc(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      
       if (status !== 'granted') {
         Alert.alert('Permissão negada', 'Precisamos de acesso à localização.');
         return;
       }
-
-      // Obtém posição atual com precisão balanceada
-      let currentLocation = await Location.getCurrentPositionAsync({
-         accuracy: Location.Accuracy.Balanced
-      });
+      let currentLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setLocation(currentLocation);
-      
     } catch (error) {
-      console.log(error);
-      Alert.alert('Erro', 'Não foi possível obter a localização. Verifique se o GPS está ativo.');
+      Alert.alert('Erro', 'Verifique o GPS.');
     } finally {
       setLoadingLoc(false);
     }
   };
 
-  // Enviar Dados
-  const handleSubmit = async () => {
-    if (!form.subgrupoId || !form.bairroId || !form.formaAcervoId) {
-      Alert.alert("Atenção", "Preencha todos os campos obrigatórios de todas as etapas.");
-      return;
-    }
+  const handleNextStep = async () => {
+    let isValid = false;
+    if (step === 1) isValid = await trigger(['naturezaId', 'grupoId', 'subgrupoId']);
+    if (step === 2) isValid = await trigger(['bairroId']); 
 
+    if (isValid) setStep(prev => prev + 1);
+  };
+
+  const onSubmit = async (data: OcorrenciaFormData) => {
     setLoadingSubmit(true);
+    const now = new Date(); 
 
     const payload = {
-      data_acionamento: form.data.toISOString(),
-      hora_acionamento: form.hora.toISOString(),
-      id_subgrupo_fk: form.subgrupoId,
-      id_bairro_fk: form.bairroId,
-      id_forma_acervo_fk: form.formaAcervoId,
-      nr_aviso: form.nrAviso || undefined,
-      observacoes: form.observacoes, 
+      data_acionamento: now.toISOString(),
+      hora_acionamento: now.toISOString(),
+      id_subgrupo_fk: data.subgrupoId,
+      id_bairro_fk: data.bairroId,
+      id_forma_acervo_fk: data.formaAcervoId,
+      nr_aviso: data.nrAviso || undefined,
+      observacoes: data.observacoes, 
       localizacao: {
-          logradouro: form.logradouro,
-          // Usa dados reais se disponíveis, senão undefined ou null
+          logradouro: data.logradouro,
           latitude: location?.coords.latitude || null, 
           longitude: location?.coords.longitude || null
       }
@@ -329,50 +321,59 @@ export const NovaOcorrenciaScreen: React.FC = () => {
 
     try {
       if (isOnline) {
-        await api.post('/api/v2/ocorrencias', payload);
-        Alert.alert("Sucesso!", "Ocorrência enviada para a central.", [
-          { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
-        ]);
+        await api.post('/api/v1/ocorrencias', payload);
+        Alert.alert("Sucesso!", "Ocorrência enviada.", [{ text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }]);
       } else {
         await addToQueue(payload);
         navigation.navigate('MinhasOcorrencias');
       }
-
-    } catch (error: unknown) {
-      const err = error as AxiosError; // Tipagem segura do erro
-      console.error(err);
-      
-      if (isOnline && err.response) {
-         // Tenta pegar mensagem de erro do backend se existir
-         const msg = (err.response.data as any)?.error || "O servidor recusou os dados.";
-         Alert.alert("Erro no Envio", msg);
-      } else {
-         Alert.alert("Erro", "Falha inesperada ao processar a ocorrência.");
-      }
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.error || "Falha ao processar.";
+      Alert.alert("Erro", msg);
     } finally {
       setLoadingSubmit(false);
     }
   };
 
+  // --- RENDER ---
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
           <>
             <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Classificação</Text>
-            <SelectInput label="Natureza" placeholder="Selecione..." value={labels.natureza} onPress={() => setModalType('natureza')} />
-            <SelectInput label="Grupo" placeholder="Selecione..." value={labels.grupo} onPress={() => setModalType('grupo')} disabled={!form.naturezaId} />
-            <SelectInput label="Subgrupo" placeholder="Selecione..." value={labels.subgrupo} onPress={() => setModalType('subgrupo')} disabled={!form.grupoId} />
+            
+            <SelectInput 
+              label="Natureza" 
+              placeholder="Selecione..." 
+              value={labels.natureza} 
+              onPress={() => setModalType('natureza')} 
+              error={errors.naturezaId?.message}
+            />
+
+            <SelectInput 
+              label="Grupo" 
+              placeholder="Selecione..." 
+              value={labels.grupo} 
+              onPress={() => setModalType('grupo')} 
+              disabled={!watchNatureza} 
+              error={errors.grupoId?.message}
+            />
+
+            <SelectInput 
+              label="Subgrupo" 
+              placeholder="Selecione..." 
+              value={labels.subgrupo} 
+              onPress={() => setModalType('subgrupo')} 
+              disabled={!watchGrupo} 
+              error={errors.subgrupoId?.message}
+            />
             
             {!isOnline && (
               <View style={tw`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex-row items-start`}>
                  <WifiOff size={20} color="#ca8a04" style={tw`mr-3 mt-1`} />
-                 <View style={tw`flex-1`}>
-                   <Text style={tw`text-yellow-800 font-bold text-sm`}>Você está Offline</Text>
-                   <Text style={tw`text-yellow-700 text-xs mt-1`}>
-                     O registro será salvo no dispositivo e enviado automaticamente quando a conexão retornar.
-                   </Text>
-                 </View>
+                 <Text style={tw`flex-1 text-yellow-800 text-xs`}>Modo Offline Ativo. O registro será sincronizado depois.</Text>
               </View>
             )}
           </>
@@ -382,42 +383,16 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           <>
             <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Localização</Text>
             
-            {/* Botão GPS */}
             <TouchableOpacity 
-              style={[
-                tw`py-3 rounded-xl border flex-row items-center justify-center mb-4`,
-                location ? tw`bg-green-50 border-green-200` : tw`bg-blue-50 border-blue-200`
-              ]}
-              activeOpacity={0.7}
+              style={[tw`py-3 rounded-xl border flex-row items-center justify-center mb-4`, location ? tw`bg-green-50 border-green-200` : tw`bg-blue-50 border-blue-200`]}
               onPress={handleGetLocation}
               disabled={loadingLoc}
             >
-               {loadingLoc ? (
-                  <ActivityIndicator size="small" color="#2563eb" />
-               ) : location ? (
-                  <>
-                     <Check size={20} color="#16a34a" style={tw`mr-2`} />
-                     <Text style={tw`text-green-700 font-bold`}>Localização Obtida</Text>
-                  </>
-               ) : (
-                  <>
-                     <MapPin size={20} color="#2563eb" style={tw`mr-2`} />
-                     <Text style={tw`text-blue-600 font-bold`}>Usar Localização Atual (GPS)</Text>
-                  </>
-               )}
+               {loadingLoc ? <ActivityIndicator size="small" color="#2563eb" /> : location ? 
+                  <><Check size={20} color="#16a34a" style={tw`mr-2`} /><Text style={tw`text-green-700 font-bold`}>GPS OK</Text></> : 
+                  <><MapPin size={20} color="#2563eb" style={tw`mr-2`} /><Text style={tw`text-blue-600 font-bold`}>Usar GPS</Text></>
+               }
             </TouchableOpacity>
-
-            {/* Visualização de Mapa (Placeholder) */}
-            <View style={tw`h-40 bg-slate-200 rounded-xl mb-6 border border-slate-300 items-center justify-center overflow-hidden relative`}>
-               <MapPin size={40} color={location ? "#ef4444" : "#94a3b8"} />
-               {location && (
-                  <View style={tw`absolute bottom-2 bg-white/90 px-3 py-1 rounded-full shadow`}>
-                    <Text style={tw`text-[10px] font-bold text-slate-700`}>
-                      Lat: {location.coords.latitude.toFixed(4)}, Lon: {location.coords.longitude.toFixed(4)}
-                    </Text>
-                  </View>
-               )}
-            </View>
 
             <View style={tw`mb-4`}>
               <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Município</Text>
@@ -426,15 +401,28 @@ export const NovaOcorrenciaScreen: React.FC = () => {
               </View>
             </View>
 
-            <SelectInput label="Bairro" placeholder="Selecione..." value={labels.bairro} onPress={() => setModalType('bairro')} />
+            <SelectInput 
+              label="Bairro" 
+              placeholder="Selecione..." 
+              value={labels.bairro} 
+              onPress={() => setModalType('bairro')} 
+              error={errors.bairroId?.message}
+            />
             
             <View style={tw`mb-4`}>
               <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Logradouro</Text>
-              <TextInput 
-                 style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-14`}
-                 placeholder="Ex: Rua dos Navegantes, 450"
-                 value={form.logradouro}
-                 onChangeText={t => setForm(prev => ({...prev, logradouro: t}))}
+              <Controller
+                control={control}
+                name="logradouro"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput 
+                     style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-14`}
+                     placeholder="Ex: Rua dos Navegantes"
+                     onBlur={onBlur}
+                     onChangeText={onChange}
+                     value={value}
+                  />
+                )}
               />
             </View>
           </>
@@ -444,42 +432,46 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           <>
             <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Detalhes</Text>
 
-            <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Data do Acionamento</Text>
-              <View style={tw`bg-gray-100 border border-gray-200 rounded-xl p-4 h-14 justify-center`}>
-                 <Text style={tw`text-slate-800 font-medium`}>{form.data.toLocaleDateString('pt-BR')}</Text>
-              </View>
-            </View>
-
-            <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Hora do Acionamento</Text>
-              <View style={tw`bg-gray-100 border border-gray-200 rounded-xl p-4 h-14 justify-center`}>
-                 <Text style={tw`text-slate-800 font-medium`}>{form.hora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</Text>
-              </View>
-            </View>
-
-            <SelectInput label="Forma de Acionamento" placeholder="Selecione..." value={labels.forma} onPress={() => setModalType('forma')} />
+            <SelectInput 
+              label="Forma de Acionamento" 
+              placeholder="Selecione..." 
+              value={labels.forma} 
+              onPress={() => setModalType('forma')} 
+              error={errors.formaAcervoId?.message}
+            />
 
             <View style={tw`mb-4`}>
               <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Número do Aviso (Opcional)</Text>
-              <TextInput 
-                 style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-14`}
-                 placeholder="091"
-                 keyboardType="numeric"
-                 value={form.nrAviso}
-                 onChangeText={t => setForm(prev => ({...prev, nrAviso: t}))}
+              <Controller
+                control={control}
+                name="nrAviso"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput 
+                     style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-14`}
+                     placeholder="091"
+                     keyboardType="numeric"
+                     onChangeText={onChange}
+                     value={value}
+                  />
+                )}
               />
             </View>
 
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Observações Iniciais</Text>
-              <TextInput 
-                 style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-32`}
-                 placeholder="Descreva informações adicionais sobre o acionamento..."
-                 multiline
-                 textAlignVertical="top"
-                 value={form.observacoes}
-                 onChangeText={t => setForm(prev => ({...prev, observacoes: t}))}
+              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Observações</Text>
+              <Controller
+                control={control}
+                name="observacoes"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput 
+                     style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-32`}
+                     placeholder="Detalhes adicionais..."
+                     multiline
+                     textAlignVertical="top"
+                     onChangeText={onChange}
+                     value={value}
+                  />
+                )}
               />
             </View>
           </>
@@ -510,13 +502,13 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             tw`py-4 rounded-xl items-center shadow-sm flex-row justify-center`,
             step === 3 ? tw`bg-[#10B981]` : tw`bg-[#061C43]`
           ]}
-          onPress={() => step < 3 ? setStep(step + 1) : handleSubmit()}
+          onPress={step < 3 ? handleNextStep : handleSubmit(onSubmit)}
           disabled={loadingSubmit}
         >
           {loadingSubmit ? <ActivityIndicator color="white" /> : (
             <>
               <Text style={tw`text-white font-bold text-base mr-2 uppercase tracking-wider`}>
-                {step === 3 ? 'FINALIZAR CADASTRO' : 'PRÓXIMO'}
+                {step === 3 ? 'FINALIZAR' : 'PRÓXIMO'}
               </Text>
               <ChevronDown size={20} color="white" style={{ transform: [{ rotate: '-90deg' }] }} />
             </>
@@ -527,9 +519,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       {/* Modais */}
       <SelectionModal visible={modalType === 'natureza'} title="Natureza" options={naturezas} onClose={() => setModalType(null)} onSelect={handleSelectNatureza} />
       <SelectionModal visible={modalType === 'grupo'} title="Grupo" options={grupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={handleSelectGrupo} />
-      <SelectionModal visible={modalType === 'subgrupo'} title="Subgrupo" options={subgrupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={(i) => { setForm(prev => ({...prev, subgrupoId: i.id})); setLabels(prev => ({...prev, subgrupo: i.label})); }} />
-      <SelectionModal visible={modalType === 'bairro'} title="Bairro" options={bairros} onClose={() => setModalType(null)} onSelect={(i) => { setForm(prev => ({...prev, bairroId: i.id})); setLabels(prev => ({...prev, bairro: i.label})); }} />
-      <SelectionModal visible={modalType === 'forma'} title="Forma de Acionamento" options={formas} onClose={() => setModalType(null)} onSelect={(i) => { setForm(prev => ({...prev, formaAcervoId: i.id})); setLabels(prev => ({...prev, forma: i.label})); }} />
+      <SelectionModal visible={modalType === 'subgrupo'} title="Subgrupo" options={subgrupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={(i) => { setValue('subgrupoId', i.id); setLabels(prev => ({...prev, subgrupo: i.label})); }} />
+      <SelectionModal visible={modalType === 'bairro'} title="Bairro" options={bairros} onClose={() => setModalType(null)} onSelect={(i) => { setValue('bairroId', i.id); setLabels(prev => ({...prev, bairro: i.label})); }} />
+      <SelectionModal visible={modalType === 'forma'} title="Forma de Acionamento" options={formas} onClose={() => setModalType(null)} onSelect={(i) => { setValue('formaAcervoId', i.id); setLabels(prev => ({...prev, forma: i.label})); }} />
     </SafeAreaView>
   );
 };
