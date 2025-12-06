@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   async function signIn(email: string, password: string, rememberMe: boolean) {
     try {
-      const response = await api.post('/api/v1/auth/login', { 
+      const response = await api.post('/api/v3/auth/login', { 
         email,
         password,
       });

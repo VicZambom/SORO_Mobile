@@ -195,9 +195,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       try {
         if (isOnline) {
           const [resNat, resBai, resFor] = await Promise.all([
-            api.get('/api/v1/naturezas'),
-            api.get('/api/v1/bairros'),
-            api.get('/api/v1/formas-acervo')
+            api.get('/api/v3/naturezas'),
+            api.get('/api/v3/bairros'),
+            api.get('/api/v3/formas-acervo')
           ]);
 
           const naturezasData = resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao }));
@@ -239,7 +239,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     const cacheKey = `@SORO:cache_grupos_${item.id}`; 
     try {
        if (isOnline) {
-          const res = await api.get('/api/v1/grupos', { params: { naturezaId: item.id } }); // Filtro na query
+          const res = await api.get('/api/v3/grupos', { params: { naturezaId: item.id } }); // Filtro na query
           const mapped = res.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
           
           setGrupos(mapped);
@@ -262,7 +262,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     const cacheKey = `@SORO:cache_subgrupos_${item.id}`;
     try {
        if (isOnline) {
-          const res = await api.get('/api/v1/subgrupos', { params: { grupoId: item.id } }); // Filtro na query
+          const res = await api.get('/api/v3/subgrupos', { params: { grupoId: item.id } }); // Filtro na query
           const mapped = res.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
           
           setSubgrupos(mapped);
@@ -321,7 +321,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
 
     try {
       if (isOnline) {
-        await api.post('/api/v1/ocorrencias', payload);
+        await api.post('/api/v3/ocorrencias', payload);
         Alert.alert("Sucesso!", "Ocorrência enviada.", [{ text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }]);
       } else {
         await addToQueue(payload);

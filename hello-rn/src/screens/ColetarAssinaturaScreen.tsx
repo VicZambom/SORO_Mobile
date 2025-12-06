@@ -61,7 +61,7 @@ export const ColetarAssinaturaScreen = () => {
         type: 'image/png',
       } as any);
 
-      await api.post(`/api/v1/ocorrencias/${ocorrenciaId}/midia`, formData, {
+      await api.post(`/api/v3/ocorrencias/${ocorrenciaId}/midia`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 

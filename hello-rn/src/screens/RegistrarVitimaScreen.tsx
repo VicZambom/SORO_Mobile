@@ -45,7 +45,7 @@ export const RegistrarVitimaScreen = () => {
         id_ocorrencia_fk: ocorrenciaId
       };
 
-      await api.post(`/api/v1/ocorrencias/${ocorrenciaId}/vitimas`, payload);
+      await api.post(`/api/v3/ocorrencias/${ocorrenciaId}/vitimas`, payload);
 
       Alert.alert('Sucesso', 'Vítima registrada com sucesso!', [
         { text: 'OK', onPress: () => navigation.goBack() }

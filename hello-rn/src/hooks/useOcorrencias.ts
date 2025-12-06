@@ -23,7 +23,7 @@ interface FetchOcorrenciasParams {
 
 // Função de fetch desacoplada
 const fetchOcorrencias = async ({ status, limit = 20 }: FetchOcorrenciasParams) => {
-  const { data } = await api.get('/api/v1/ocorrencias', {
+  const { data } = await api.get('/api/v3/ocorrencias', {
     params: { status, limit }
   });
   return data.data as OcorrenciaAPI[];

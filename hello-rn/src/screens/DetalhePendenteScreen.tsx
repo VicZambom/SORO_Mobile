@@ -3,48 +3,31 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { ArrowLeft, MapPin, Navigation as NavigationIcon, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, MapPin, Navigation as NavigationIcon } from 'lucide-react-native';
 import tw from 'twrnc';
 import api from '../services/api';
 import { RootStackParamList, AppNavigationProp } from '../types/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 
 type DetalhePendenteRouteProp = RouteProp<RootStackParamList, 'DetalhePendente'>;
 
-// --- TIPAGEM DOS DADOS DA API ---
+// Tipagem 
 interface OcorrenciaDetalhada {
   id_ocorrencia: string;
   nr_aviso: string | null;
-  status_situacao: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
+  status_situacao: string;
   hora_acionamento: string;
-  subgrupo: {
-    descricao_subgrupo: string;
-    grupo?: {
-      natureza?: {
-        descricao: string;
-      }
-    }
-  };
-  bairro: {
-    nome_bairro: string;
-    municipio?: {
-      nome_municipio: string;
-    }
-  };
-  forma_acervo: {
-    descricao: string;
-  };
-  localizacao?: {
-    logradouro: string;
-    referencia_logradouro: string;
-    latitude?: number; 
-    longitude?: number; 
-  };
+  subgrupo: { descricao_subgrupo: string; grupo?: { natureza?: { descricao: string } } };
+  bairro: { nome_bairro: string; municipio?: { nome_municipio: string } };
+  forma_acervo: { descricao: string };
+  localizacao?: { logradouro: string; referencia_logradouro: string; latitude?: number; longitude?: number; };
 }
 
 export const DetalhePendenteScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const route = useRoute<DetalhePendenteRouteProp>();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
 
   const { id } = route.params;
 
@@ -52,289 +35,130 @@ export const DetalhePendenteScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
-  // --- BUSCAR DADOS (GET) ---
   const fetchDetalhes = async () => {
     try {
-      const response = await api.get(`/api/v1/ocorrencias/${id}`);
+      const response = await api.get(`/api/v3/ocorrencias/${id}`);
       setOcorrencia(response.data);
     } catch (error) {
-      console.error('Erro ao buscar detalhes:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os detalhes da ocorrência.');
+      Alert.alert('Erro', 'Não foi possível carregar os detalhes.');
       navigation.goBack();
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchDetalhes();
-  }, [id]);
+  useEffect(() => { fetchDetalhes(); }, [id]);
 
-  // --- ATUALIZAR STATUS (PUT) ---
-  const handleStatusUpdate = async (novoStatus: 'EM_ANDAMENTO' | 'CONCLUIDO') => {
+  const handleIniciarDeslocamento = async () => {
     if (!ocorrencia) return;
     setUpdating(true);
     try {
-      await api.put(`/api/v1/ocorrencias/${ocorrencia.id_ocorrencia}`, {
-        status_situacao: novoStatus,
+      // 1. Atualiza status para EM_ANDAMENTO e registra data_saida 
+      await api.put(`/api/v3/ocorrencias/${ocorrencia.id_ocorrencia}`, {
+        status_situacao: 'EM_ANDAMENTO',
         relacionado_eleicao: false, 
+        nr_aviso: ocorrencia.nr_aviso,
         data_execucao_servico: null, 
-        nr_aviso: ocorrencia.nr_aviso 
       });
 
-      setOcorrencia((prev) => prev ? { ...prev, status_situacao: novoStatus } : null);
+      // 2. Invalida cache para atualizar a lista "Minhas Ocorrências"
+      await queryClient.invalidateQueries({ queryKey: ['ocorrencias'] });
 
-      if (novoStatus === 'EM_ANDAMENTO') {
-        Alert.alert('Sucesso', 'Deslocamento iniciado!');
-      } else if (novoStatus === 'CONCLUIDO') {
-        Alert.alert('Sucesso', 'Chegada registrada e ocorrência concluída (simulação)!');
-        navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
-      }
+      Alert.alert('Deslocamento Iniciado', 'Boa sorte na missão!', [
+        { 
+          text: 'Ir para Mapa e Detalhes', 
+          onPress: () => {
+            // 3. Substitui a tela atual pela tela de andamento
+            navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
+          }
+        }
+      ]);
 
     } catch (error: any) {
-      if (error.response) {
-         console.error('Erro Backend:', error.response.data);
-         // Se for erro de validação, alerta o usuário
-         if (error.response.status === 400 && Array.isArray(error.response.data)) {
-            Alert.alert('Erro de Validação', error.response.data[0].message);
-         } else {
-            Alert.alert('Erro', 'Falha ao atualizar o status.');
-         }
-      } else {
-         console.error('Erro de conexão:', error);
-         Alert.alert('Erro', 'Falha de conexão.');
-      }
+       console.error(error);
+       Alert.alert('Erro', 'Falha ao iniciar deslocamento.');
     } finally {
       setUpdating(false);
     }
   };
 
-  const handleBotaoPrincipal = () => {
-    if (!ocorrencia) return;
-
-    if (ocorrencia.status_situacao === 'PENDENTE') {
-      handleStatusUpdate('EM_ANDAMENTO');
-      
-    } else if (ocorrencia.status_situacao === 'EM_ANDAMENTO') {
-      Alert.alert(
-        "Registrar Chegada",
-        "Confirma a chegada da viatura ao local da ocorrência?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          { 
-            text: "Confirmar Chegada", 
-            onPress: () => {
-              navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
-            } 
-          }
-        ]
-      );
-    }
-  };
-
   const handleNavegarMapa = () => {
     if (!ocorrencia) return;
-
     const { localizacao, bairro } = ocorrencia;
-    const lat = localizacao?.latitude;
-    const lng = localizacao?.longitude;
-    
-    // Monta um endereço aproximado caso não tenha GPS exato
-    const enderecoCompleto = `${localizacao?.logradouro || ''}, ${bairro.nome_bairro}, ${bairro.municipio?.nome_municipio || ''}`;
-    const label = "Local da Ocorrência";
-
-    let url = '';
-
-    if (lat && lng) {
-      const latLng = `${lat},${lng}`;
-      if (Platform.OS === 'ios') {
-        url = `maps:0,0?q=${label}@${latLng}`;
-      } else {
-        url = `geo:${latLng}?q=${latLng}(${label})`;
-      }
-    } else {
-      const query = encodeURIComponent(enderecoCompleto);
-      if (Platform.OS === 'ios') {
-        url = `maps:0,0?q=${query}`;
-      } else {
-        url = `geo:0,0?q=${query}`;
-      }
-    }
-
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        // Se não tiver o aplicativo, abre no navegador
-        const browserUrl = `https://www.google.com/maps/search/?api=1&query=${lat && lng ? `${lat},${lng}` : encodeURIComponent(enderecoCompleto)}`;
-        Linking.openURL(browserUrl);
-      }
-    }).catch(err => console.error('Erro ao abrir mapa:', err));
+    const query = encodeURIComponent(`${localizacao?.logradouro || ''}, ${bairro.nome_bairro}`);
+    const url = Platform.OS === 'ios' ? `maps:0,0?q=${query}` : `geo:0,0?q=${query}`;
+    Linking.openURL(url).catch(err => console.error(err));
   };
 
-  // Formatação de hora
-  const formatarHora = (dataIso: string) => {
-    if (!dataIso) return '--:--';
-    return new Date(dataIso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // --- RENDERIZAÇÃO DE LOADING ---
-  if (loading) {
-    return (
-      <View style={tw`flex-1 justify-center items-center bg-slate-50`}>
-        <ActivityIndicator size="large" color="#061C43" />
-        <Text style={tw`mt-4 text-slate-500`}>Carregando detalhes...</Text>
-      </View>
-    );
-  }
-
+  if (loading) return <View style={tw`flex-1 justify-center items-center`}><ActivityIndicator size="large" color="#061C43" /></View>;
   if (!ocorrencia) return null;
-
-  // --- COMPONENTES INTERNOS ---
-  const InfoItem = ({ label, value }: { label: string; value: string }) => (
-    <View style={tw`w-[48%] mb-4`}>
-      <Text style={tw`text-xs text-gray-400 mb-0.5`}>{label}</Text>
-      <Text style={tw`text-base font-bold text-slate-800`}>{value}</Text>
-    </View>
-  );
-
-  // Define cores e textos baseados no status REAL da API
-  const isPendente = ocorrencia.status_situacao === 'PENDENTE';
-  const isEmDeslocamento = ocorrencia.status_situacao === 'EM_ANDAMENTO';
-
-  const headerColor = isPendente ? '#FECACA' : '#FFEDD5'; // Vermelho ou Laranja claro
-  const pillColor = isPendente ? '#DC2626' : '#EA580C'; // Vermelho ou Laranja escuro
-  const statusText = isPendente ? 'PENDENTE • AGUARDANDO EQUIPE' : 'EM DESLOCAMENTO';
-  const buttonText = isPendente ? 'INICIAR DESLOCAMENTO' : 'REGISTRAR CHEGADA';
 
   return (
     <View style={tw`flex-1 bg-gray-50`}>
-      
-      {/* --- HEADER --- */}
-      <View 
-        style={[
-          tw`pb-6 rounded-b-3xl shadow-sm`,
-          { backgroundColor: headerColor, paddingTop: insets.top }
-        ]}
-      >
-        {/* Top Bar */}
+      {/* Header */}
+      <View style={[tw`pb-6 bg-red-100 rounded-b-3xl shadow-sm`, { paddingTop: insets.top }]}>
         <View style={tw`flex-row items-center justify-between px-6 py-3`}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={tw`p-1`}>
             <ArrowLeft color="#1F2937" size={28} />
           </TouchableOpacity>
-          
-          <Text style={tw`text-lg font-extrabold text-slate-900 tracking-wider`}>
-            {ocorrencia.nr_aviso ? `#${ocorrencia.nr_aviso}` : 'SEM AVISO'}
-          </Text>
-          
+          <Text style={tw`text-lg font-extrabold text-slate-900`}>{ocorrencia.nr_aviso ? `#${ocorrencia.nr_aviso}` : 'SEM AVISO'}</Text>
           <View style={{ width: 28 }} /> 
         </View>
-
-        {/* Status Pill */}
         <View style={tw`items-center mt-1`}>
-            <View style={[
-                tw`px-5 py-2 rounded-full flex-row items-center shadow-sm`,
-                { backgroundColor: pillColor }
-            ]}>
-                <View style={tw`w-2 h-2 rounded-full bg-white mr-2`} />
-                <Text style={tw`text-white font-bold text-xs uppercase tracking-wide`}>
-                    {statusText}
-                </Text>
+            <View style={tw`px-5 py-2 rounded-full bg-red-600 flex-row items-center shadow-sm`}>
+                <Text style={tw`text-white font-bold text-xs uppercase`}>AGUARDANDO EQUIPE</Text>
             </View>
         </View>
       </View>
 
       <ScrollView style={tw`flex-1 -mt-4`} contentContainerStyle={tw`px-5 pb-32`}>
-        
-        {/* --- CARD DETALHES --- */}
         <View style={tw`bg-white rounded-2xl p-6 shadow-md mb-4 border border-gray-100`}>
-          <Text style={tw`text-2xl font-black text-slate-900 mb-1`}>
-            {ocorrencia.subgrupo.descricao_subgrupo}
-          </Text>
-          <Text style={tw`text-base font-semibold text-slate-600 mb-3`}>
-            {ocorrencia.bairro.nome_bairro} - {ocorrencia.bairro.municipio?.nome_municipio || 'PE'}
-          </Text>
+          <Text style={tw`text-2xl font-black text-slate-900 mb-1`}>{ocorrencia.subgrupo.descricao_subgrupo}</Text>
+          <Text style={tw`text-base font-semibold text-slate-600 mb-3`}>{ocorrencia.bairro.nome_bairro}</Text>
           
-          <View style={tw`h-px bg-gray-100 my-3`} />
-          
-          {/* Descrição genérica se não houver detalhes específicos */}
-          <Text style={tw`text-sm text-slate-500 italic leading-relaxed mb-6`}>
-             "Ocorrência registrada via {ocorrencia.forma_acervo.descricao.toLowerCase()}. 
-             Verificar situação no local."
-          </Text>
-
-          <View style={tw`flex-row flex-wrap justify-between`}>
-            <InfoItem 
-                label="Natureza" 
-                value={ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'} 
-            />
-            <InfoItem label="Prioridade" value="Média" /> 
-            <InfoItem label="Horário" value={formatarHora(ocorrencia.hora_acionamento)} />
-            <InfoItem label="Forma" value={ocorrencia.forma_acervo.descricao} />
+          <View style={tw`flex-row flex-wrap justify-between mt-4`}>
+            <View style={tw`w-[48%] mb-4`}>
+                <Text style={tw`text-xs text-gray-400`}>Natureza</Text>
+                <Text style={tw`text-base font-bold text-slate-800`}>{ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}</Text>
+            </View>
+            <View style={tw`w-[48%] mb-4`}>
+                <Text style={tw`text-xs text-gray-400`}>Horário</Text>
+                <Text style={tw`text-base font-bold text-slate-800`}>{new Date(ocorrencia.hora_acionamento).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</Text>
+            </View>
           </View>
         </View>
 
-        {/* --- CARD LOCALIZAÇÃO --- */}
         <View style={tw`bg-white rounded-2xl p-5 shadow-md border border-gray-100`}>
             <View style={tw`flex-row items-start mb-4`}>
                 <View style={tw`w-10 h-10 rounded-full bg-red-100 items-center justify-center mr-3`}>
                     <MapPin color="#EF4444" size={20} />
                 </View>
                 <View style={tw`flex-1`}>
-                    <Text style={tw`text-base font-bold text-slate-900`}>
-                        {ocorrencia.localizacao?.logradouro || 'Endereço não informado'}
-                    </Text>
-                    <Text style={tw`text-sm text-slate-500`}>
-                         {ocorrencia.bairro.nome_bairro}
-                    </Text>
-                    <Text style={tw`text-xs text-slate-400 mt-1`}>
-                        {ocorrencia.localizacao?.referencia_logradouro || 'Sem ponto de referência'}
-                    </Text>
+                    <Text style={tw`text-base font-bold text-slate-900`}>{ocorrencia.localizacao?.logradouro || 'Endereço não informado'}</Text>
+                    <Text style={tw`text-xs text-slate-400 mt-1`}>{ocorrencia.localizacao?.referencia_logradouro}</Text>
                 </View>
             </View>
-
-            <TouchableOpacity 
-                style={tw`bg-blue-50 py-3 rounded-xl border border-blue-100 flex-row items-center justify-center`}
-                onPress={handleNavegarMapa}
-            >
-                <MapPin size={18} color="#3B82F6" style={tw`mr-2`} />
-                <Text style={tw`text-blue-500 font-bold text-sm`}>Ir para o mapa</Text>
+            <TouchableOpacity style={tw`bg-blue-50 py-3 rounded-xl border border-blue-100 items-center`} onPress={handleNavegarMapa}>
+                <Text style={tw`text-blue-500 font-bold text-sm`}>Ver no Mapa</Text>
             </TouchableOpacity>
         </View>
-
       </ScrollView>
 
-      {/* --- FOOTER (Botão Fixo) --- */}
+      {/* Botão Fixo: Iniciar Deslocamento */}
       <View style={[tw`absolute bottom-0 left-0 right-0 bg-white px-5 pt-4 pb-8 border-t border-gray-100`, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }]}>
         <TouchableOpacity 
-            style={[
-                tw`py-4 rounded-xl shadow-lg flex-row items-center justify-center`,
-                updating ? tw`bg-gray-400` : tw`bg-[#061C43]`
-            ]}
-            onPress={handleBotaoPrincipal}
-            activeOpacity={0.9}
+            style={[tw`py-4 rounded-xl shadow-lg flex-row items-center justify-center`, updating ? tw`bg-gray-400` : tw`bg-[#061C43]`]}
+            onPress={handleIniciarDeslocamento}
             disabled={updating}
         >
-            {updating ? (
-                <ActivityIndicator color="white" />
-            ) : (
+            {updating ? <ActivityIndicator color="white" /> : (
                 <>
-                    {isPendente ? (
-                        <NavigationIcon size={20} color="white" style={tw`mr-2`} />
-                    ) : (
-                        <CheckCircle size={20} color="white" style={tw`mr-2`} />
-                    )}
-                    
-                    <Text style={tw`text-white font-bold text-base tracking-wider uppercase`}>
-                        {buttonText}
-                    </Text>
+                    <NavigationIcon size={20} color="white" style={tw`mr-2`} />
+                    <Text style={tw`text-white font-bold text-base uppercase tracking-wider`}>INICIAR DESLOCAMENTO</Text>
                 </>
             )}
         </TouchableOpacity>
       </View>
-
     </View>
   );
 };
-
-export default DetalhePendenteScreen;
