@@ -247,7 +247,7 @@ export const DetalheAndamentoScreen = () => {
 
   const fetchDetalhes = async () => {
     try {
-      const response = await api.get(`/api/v1/ocorrencias/${id}`);
+      const response = await api.get(`/api/v3/ocorrencias/${id}`);
       setOcorrencia(response.data);
     } catch (error) {
       console.error(error);
@@ -302,7 +302,7 @@ export const DetalheAndamentoScreen = () => {
       formData.append('midia', { uri: asset.uri, name: filename, type } as any);
 
       const response = await api.post(
-        `/api/v1/ocorrencias/${ocorrencia.id_ocorrencia}/midia`, 
+        `/api/v3/ocorrencias/${ocorrencia.id_ocorrencia}/midia`, 
         formData, 
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );

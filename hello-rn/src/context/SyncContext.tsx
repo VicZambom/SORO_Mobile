@@ -103,7 +103,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         // Tenta enviar para a API
-        await api.post('/api/v2/ocorrencias', item.payload);
+        await api.post('/api/v3/ocorrencias', item.payload);
         successCount++;
         console.log(`Item ${item.id_temp} sincronizado.`);
       } catch (error: unknown) {

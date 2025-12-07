@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, SafeAreaView, StatusBar } from 'react-native';
+import { View, StatusBar } from 'react-native'; // Removido SafeAreaView daqui
+import { SafeAreaView } from 'react-native-safe-area-context'; // Adicionado aqui
 import tw from 'twrnc';
 
 interface Props {
