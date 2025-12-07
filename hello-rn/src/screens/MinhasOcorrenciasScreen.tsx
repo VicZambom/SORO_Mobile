@@ -1,17 +1,18 @@
 import React, { useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
 import tw from 'twrnc';
-import { User, Clock, Plus } from 'lucide-react-native';
+import { User, Clock, Plus, CloudOff } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { ScreenWrapper } from '../components/ScreenWrapper';
 import { Card } from '../components/Card';
-import { SkeletonCard } from '../components/SkeletonCard'; // <--- Importei o Skeleton
-import { COLORS } from '../constants/theme'; // <--- Importei o Tema
+import { SkeletonCard } from '../components/SkeletonCard'; 
+import { COLORS } from '../constants/theme'; 
 
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useSync } from '../context/SyncContext';
 import { AppNavigationProp } from '../types/navigation';
 import { useOcorrencias, OcorrenciaAPI } from '../hooks/useOcorrencias';
 
@@ -19,6 +20,7 @@ export const MinhasOcorrencias = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const { user } = useAuth();
   const { socket } = useSocket();
+  const { pendingQueue, isOnline } = useSync();
   const queryClient = useQueryClient();
 
   const { 
@@ -58,6 +60,28 @@ export const MinhasOcorrencias = () => {
       socket.off('ocorrencia_atualizada');
     };
   }, [socket, queryClient]);
+
+  const OfflineBanner = () => {
+  if (pendingQueue.length === 0) return null;
+
+  return (
+    <TouchableOpacity 
+      style={tw`bg-orange-100 px-4 py-3 mb-4 rounded-lg flex-row items-center border border-orange-200`}
+      onPress={() => navigation.navigate('Perfil')}
+    >
+      <CloudOff size={20} color={COLORS.secondary} style={tw`mr-3`} />
+      <View style={tw`flex-1`}>
+        <Text style={tw`text-orange-800 font-bold text-xs uppercase`}>
+          Sincronização Pendente
+        </Text>
+        <Text style={tw`text-orange-700 text-xs`}>
+          {pendingQueue.length} ocorrência(s) aguardando conexão.
+        </Text>
+      </View>
+      <Text style={tw`text-orange-800 font-bold text-xs`}>Ver</Text>
+    </TouchableOpacity>
+  );
+};
 
   const formatarHora = (dataIso: string) => {
     if (!dataIso) return '--:--';
@@ -183,8 +207,8 @@ export const MinhasOcorrencias = () => {
   return (
     <ScreenWrapper>
       <View style={tw`flex-1`}>
+        <OfflineBanner />
         {loading ? (
-          // Exibe o Header estático + Skeletons enquanto carrega
           <>
             <View style={tw`flex-row justify-between items-center mb-6 mt-2`}>
               <View>

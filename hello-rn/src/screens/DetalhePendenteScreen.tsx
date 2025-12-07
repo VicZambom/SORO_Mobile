@@ -4,6 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft, MapPin, Navigation as NavigationIcon, CheckCircle } from 'lucide-react-native';
+import { COLORS } from '../constants/theme';
 import tw from 'twrnc';
 import api from '../services/api';
 import { RootStackParamList, AppNavigationProp } from '../types/navigation';
@@ -275,32 +276,52 @@ export const DetalhePendenteScreen: React.FC = () => {
         </View>
 
         {/* --- CARD LOCALIZAÇÃO --- */}
-        <View style={tw`bg-white rounded-2xl p-5 shadow-md border border-gray-100`}>
-            <View style={tw`flex-row items-start mb-4`}>
-                <View style={tw`w-10 h-10 rounded-full bg-red-100 items-center justify-center mr-3`}>
-                    <MapPin color="#EF4444" size={20} />
-                </View>
-                <View style={tw`flex-1`}>
-                    <Text style={tw`text-base font-bold text-slate-900`}>
-                        {ocorrencia.localizacao?.logradouro || 'Endereço não informado'}
-                    </Text>
-                    <Text style={tw`text-sm text-slate-500`}>
-                         {ocorrencia.bairro.nome_bairro}
-                    </Text>
-                    <Text style={tw`text-xs text-slate-400 mt-1`}>
-                        {ocorrencia.localizacao?.referencia_logradouro || 'Sem ponto de referência'}
-                    </Text>
-                </View>
-            </View>
+        <View style={tw`bg-white rounded-2xl overflow-hidden shadow-md border border-gray-100 mb-6`}>
+          {/* Header do Card */}
+          <View style={tw`p-4 border-b border-gray-100 flex-row items-center`}>
+              <MapPin size={20} color={COLORS.primary} style={tw`mr-2`} />
+              <Text style={tw`font-bold text-[${COLORS.text}] text-base`}>Localização</Text>
+          </View>
 
-            <TouchableOpacity 
-                style={tw`bg-blue-50 py-3 rounded-xl border border-blue-100 flex-row items-center justify-center`}
-                onPress={handleNavegarMapa}
-            >
-                <MapPin size={18} color="#3B82F6" style={tw`mr-2`} />
-                <Text style={tw`text-blue-500 font-bold text-sm`}>Ir para o mapa</Text>
-            </TouchableOpacity>
-        </View>
+          {/* "Mapa" Visual (Placeholder clicável) */}
+          <TouchableOpacity 
+              style={tw`h-40 bg-slate-100 relative items-center justify-center`}
+              onPress={handleNavegarMapa}
+              activeOpacity={0.9}
+          >
+              {/* Imagem de fundo simulando mapa (opcional, ou use um bg-color sólido) */}
+              {/* <Image source={require('...')} style={tw`absolute inset-0 w-full h-full opacity-50`} /> */}
+              
+              {/* Pin Centralizado */}
+              <View style={tw`items-center`}>
+                  <MapPin size={32} color={COLORS.danger} fill={COLORS.danger} />
+                  <View style={tw`w-2 h-1 bg-black/20 rounded-full mt-1`} />
+              </View>
+              
+              {/* Botão flutuante sobre o mapa */}
+              <View style={tw`absolute bottom-3 right-3 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200`}>
+                  <Text style={tw`text-xs font-bold text-[${COLORS.primary}]`}>Abrir GPS</Text>
+              </View>
+          </TouchableOpacity>
+
+          {/* Endereço em Texto */}
+          <View style={tw`p-4 bg-white`}>
+              <Text style={tw`text-base font-bold text-[${COLORS.text}] mb-1`}>
+                  {ocorrencia.localizacao?.logradouro || 'Logradouro não informado'}
+              </Text>
+              <Text style={tw`text-sm text-[${COLORS.textLight}]`}>
+                      {ocorrencia.bairro.nome_bairro}, {ocorrencia.bairro.municipio?.nome_municipio}
+              </Text>
+              {ocorrencia.localizacao?.referencia_logradouro && (
+                  <View style={tw`mt-3 bg-blue-50 p-2 rounded-lg`}>
+                      <Text style={tw`text-xs text-blue-700`}>
+                          <Text style={tw`font-bold`}>Ref: </Text>
+                          {ocorrencia.localizacao.referencia_logradouro}
+                      </Text>
+                  </View>
+              )}
+          </View>
+      </View>
 
       </ScrollView>
 

@@ -2,7 +2,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 import Constants from 'expo-constants';
+// import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthContext';
+
+/*
+// Configuração para o alerta aparecer mesmo com o app aberto
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true, 
+    shouldShowList: true,   
+  }),
+});
+*/
 
 interface SocketContextData {
   socket: Socket | null;
@@ -17,6 +31,19 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const { signed } = useAuth();
+
+  /* Comentado para o Expo Go
+  // Solicitar permissão ao montar
+  useEffect(() => {
+    async function requestPermissions() {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permissão de notificação negada');
+      }
+    }
+    requestPermissions();
+  }, []);
+  */
 
   useEffect(() => {
     let socketInstance: Socket | null = null;
@@ -37,19 +64,25 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setConnected(false);
       });
 
+      socketInstance.on('nova_ocorrencia', async (data) => {
+        console.log(' Nova ocorrência recebida via Socket');
+        
+        /* await Notifications.scheduleNotificationAsync({
+          content: {
+            title: ' Nova Ocorrência!',
+            body: `Verifique o chamado no bairro ${data.bairro?.nome_bairro || 'Desconhecido'}.`,
+            data: { url: `/ocorrencia/${data.id_ocorrencia}` }, // Dados extras úteis
+          },
+          trigger: null, // Dispara imediatamente
+        });
+        */
+      });
+
       setSocket(socketInstance);
-    } else {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setConnected(false);
-      }
     }
-    
+
     return () => {
-      if (socketInstance) {
-        socketInstance.disconnect();
-      }
+       if (socketInstance) socketInstance.disconnect();
     };
   }, [signed]);
 
