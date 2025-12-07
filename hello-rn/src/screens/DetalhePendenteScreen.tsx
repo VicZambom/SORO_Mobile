@@ -8,6 +8,7 @@ import { COLORS } from '../constants/theme';
 import tw from 'twrnc';
 import api from '../services/api';
 import { RootStackParamList, AppNavigationProp } from '../types/navigation';
+import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
 
 type DetalhePendenteRouteProp = RouteProp<RootStackParamList, 'DetalhePendente'>;
 
@@ -51,7 +52,8 @@ export const DetalhePendenteScreen: React.FC = () => {
 
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaDetalhada | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const updateMutation = useUpdateStatusOcorrencia();
+  const isUpdating = updateMutation.isPending;
 
   // --- BUSCAR DADOS (GET) ---
   const fetchDetalhes = async () => {
@@ -72,43 +74,29 @@ export const DetalhePendenteScreen: React.FC = () => {
   }, [id]);
 
   // --- ATUALIZAR STATUS (PUT) ---
-  const handleStatusUpdate = async (novoStatus: 'EM_ANDAMENTO' | 'CONCLUIDO') => {
+  const handleStatusUpdate = (novoStatus: 'EM_ANDAMENTO' | 'CONCLUIDO') => {
     if (!ocorrencia) return;
-    setUpdating(true);
-    try {
-      await api.put(`/api/v3/ocorrencias/${ocorrencia.id_ocorrencia}`, {
+
+    updateMutation.mutate({
+        id: ocorrencia.id_ocorrencia,
         status_situacao: novoStatus,
-        relacionado_eleicao: false, 
-        data_execucao_servico: null, 
-        nr_aviso: ocorrencia.nr_aviso 
-      });
+        nr_aviso: ocorrencia.nr_aviso
+    }, {
+        onSuccess: () => {
+            // Atualiza estado local apenas para feedback visual imediato se quiser
+            // O React Query já vai disparar re-render ao invalidar, 
+            // mas podemos forçar a UI aqui se necessário
+            setOcorrencia((prev) => prev ? { ...prev, status_situacao: novoStatus } : null);
 
-      setOcorrencia((prev) => prev ? { ...prev, status_situacao: novoStatus } : null);
-
-      if (novoStatus === 'EM_ANDAMENTO') {
-        Alert.alert('Sucesso', 'Deslocamento iniciado!');
-      } else if (novoStatus === 'CONCLUIDO') {
-        Alert.alert('Sucesso', 'Chegada registrada e ocorrência concluída (simulação)!');
-        navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
-      }
-
-    } catch (error: any) {
-      if (error.response) {
-         console.error('Erro Backend:', error.response.data);
-         // Se for erro de validação, alerta o usuário
-         if (error.response.status === 400 && Array.isArray(error.response.data)) {
-            Alert.alert('Erro de Validação', error.response.data[0].message);
-         } else {
-            Alert.alert('Erro', 'Falha ao atualizar o status.');
-         }
-      } else {
-         console.error('Erro de conexão:', error);
-         Alert.alert('Erro', 'Falha de conexão.');
-      }
-    } finally {
-      setUpdating(false);
-    }
-  };
+            if (novoStatus === 'EM_ANDAMENTO') {
+                Alert.alert('Sucesso', 'Deslocamento iniciado!');
+            } else if (novoStatus === 'CONCLUIDO') {
+                Alert.alert('Sucesso', 'Chegada registrada!');
+                navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
+            }
+        }
+    });
+};
 
   const handleBotaoPrincipal = () => {
     if (!ocorrencia) return;
@@ -330,13 +318,13 @@ export const DetalhePendenteScreen: React.FC = () => {
         <TouchableOpacity 
             style={[
                 tw`py-4 rounded-xl shadow-lg flex-row items-center justify-center`,
-                updating ? tw`bg-gray-400` : tw`bg-[#061C43]`
+                isUpdating ? tw`bg-gray-400` : tw`bg-[#061C43]`
             ]}
             onPress={handleBotaoPrincipal}
             activeOpacity={0.9}
-            disabled={updating}
+            disabled={isUpdating}
         >
-            {updating ? (
+            {isUpdating ? (
                 <ActivityIndicator color="white" />
             ) : (
                 <>

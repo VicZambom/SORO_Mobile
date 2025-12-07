@@ -14,10 +14,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import api from '../services/api';
-import { AxiosError } from 'axios';
 import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations';
 
 // --- SCHEMA DE VALIDAÇÃO (ZOD) ---
 const ocorrenciaSchema = z.object({
@@ -153,7 +153,8 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const { isOnline, addToQueue } = useSync();
   const [step, setStep] = useState(1);
-  const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const createMutation = useCreateOcorrencia();
+  const isSubmitting = createMutation.isPending;
 
   // React Hook Form
   const { control, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<OcorrenciaFormData>({
@@ -301,40 +302,38 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   };
 
   const onSubmit = async (data: OcorrenciaFormData) => {
-    setLoadingSubmit(true);
     const now = new Date(); 
 
     const payload = {
-      data_acionamento: now.toISOString(),
-      hora_acionamento: now.toISOString(),
-      id_subgrupo_fk: data.subgrupoId,
-      id_bairro_fk: data.bairroId,
-      id_forma_acervo_fk: data.formaAcervoId,
-      nr_aviso: data.nrAviso || undefined,
-      observacoes: data.observacoes, 
-      localizacao: {
-          logradouro: data.logradouro,
-          latitude: location?.coords.latitude || null, 
-          longitude: location?.coords.longitude || null
-      }
-    };
-
-    try {
-      if (isOnline) {
-        await api.post('/api/v3/ocorrencias', payload);
-        Alert.alert("Sucesso!", "Ocorrência enviada.", [{ text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }]);
-      } else {
-        await addToQueue(payload);
-        navigation.navigate('MinhasOcorrencias');
-      }
-    } catch (error: any) {
-      console.error(error);
-      const msg = error.response?.data?.error || "Falha ao processar.";
-      Alert.alert("Erro", msg);
-    } finally {
-      setLoadingSubmit(false);
+    data_acionamento: now.toISOString(),
+    hora_acionamento: now.toISOString(),
+    id_subgrupo_fk: data.subgrupoId,
+    id_bairro_fk: data.bairroId,
+    id_forma_acervo_fk: data.formaAcervoId,
+    nr_aviso: data.nrAviso || undefined,
+    observacoes: data.observacoes, 
+    localizacao: {
+        logradouro: data.logradouro,
+        latitude: location?.coords.latitude || null, 
+        longitude: location?.coords.longitude || null
     }
   };
+
+    if (isOnline) {
+    // USO DO REACT QUERY
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+         Alert.alert("Sucesso!", "Ocorrência enviada.", [
+            { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
+         ]);
+      }
+    });
+  } else {
+    // Lógica Offline
+    await addToQueue(payload);
+    navigation.navigate('MinhasOcorrencias');
+  }
+};
 
   // --- RENDER ---
   const renderStepContent = () => {
@@ -503,9 +502,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             step === 3 ? tw`bg-[#10B981]` : tw`bg-[#061C43]`
           ]}
           onPress={step < 3 ? handleNextStep : handleSubmit(onSubmit)}
-          disabled={loadingSubmit}
+          disabled={isSubmitting}
         >
-          {loadingSubmit ? <ActivityIndicator color="white" /> : (
+          {isSubmitting ? <ActivityIndicator color="white" /> : (
             <>
               <Text style={tw`text-white font-bold text-base mr-2 uppercase tracking-wider`}>
                 {step === 3 ? 'FINALIZAR' : 'PRÓXIMO'}
