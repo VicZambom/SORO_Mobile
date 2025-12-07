@@ -1,6 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store'; 
 import api from '../services/api';
 
 interface User {
@@ -16,8 +17,6 @@ interface AuthContextData {
   signed: boolean;
   user: User | null;
   loading: boolean;
-
-  // Parâmetro rememberMe
   signIn: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   signOut: () => void;
 }
@@ -30,16 +29,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     async function loadStorageData() { 
-      // Ao fazer a leitura, se o usuário marcou "lembrar" anteriormente, ele loga.
+      try {
+        const [storedUser, token] = await Promise.all([
+          AsyncStorage.getItem('@SORO:user'),
+          SecureStore.getItemAsync('token')
+        ]);
 
-      const storedUser = await AsyncStorage.getItem('@SORO:user');
-      const storedToken = await AsyncStorage.getItem('@SORO:token');
-
-      if (storedUser && storedToken) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-        setUser(JSON.parse(storedUser));
+        if (storedUser && token) {
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados de armazenamento:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     loadStorageData();
@@ -47,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   async function signIn(email: string, password: string, rememberMe: boolean) {
     try {
-      const response = await api.post('/api/v1/auth/login', { 
+      const response = await api.post('/api/v3/auth/login', { 
         email,
         password,
       });
@@ -56,23 +60,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // SÓ salva no celular se o usuário pediu para lembrar
+      // Persistência condicional 
       if (rememberMe) {
         await AsyncStorage.setItem('@SORO:user', JSON.stringify(user));
-        await AsyncStorage.setItem('@SORO:token', token);
+        await SecureStore.setItemAsync('token', token); 
       }
 
-      // Atualiza o estado da aplicação 
       setUser(user);
       
-    } catch (error: any) {
-      throw error;
+    } catch (error) {
+      // Repassa o erro para a tela tratar 
+      throw error; 
     }
   }
 
   async function signOut() {
-    await AsyncStorage.clear();
-    setUser(null);
+    try {
+      await AsyncStorage.removeItem('@SORO:user');
+      await SecureStore.deleteItemAsync('token'); // Destrói o token seguro
+      
+      // Limpa o estado e o header
+      setUser(null);
+      delete api.defaults.headers.common['Authorization'];
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
   }
 
   return (
