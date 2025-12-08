@@ -100,7 +100,8 @@ Antes de começar, certifique-se de ter instalado em sua máquina:
 
 O código fonte está localizado na pasta `src/`:
 
-```src/ 
+```pastas
+src/ 
 ├── components/      # Componentes reutilizáveis (Card, Header, Input, etc.)
 ├── config/          # Configurações globais
 ├── constants/       # Constantes de tema (Cores, Fontes)
