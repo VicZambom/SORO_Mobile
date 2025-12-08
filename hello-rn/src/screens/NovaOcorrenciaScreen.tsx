@@ -1,4 +1,3 @@
-// src/screens/NovaOcorrenciaScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { ScrollView, Text, View, TouchableOpacity, KeyboardAvoidingView, 
   Platform, Modal, FlatList, ActivityIndicator, Alert, TextInput 
@@ -12,35 +11,35 @@ import * as Location from 'expo-location';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import api from '../services/api';
 import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations';
+import { COLORS } from '../constants/theme';
+import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations'; 
 
-// --- SCHEMA DE VALIDAÇÃO (ZOD) ---
+// --- SCHEMA DE VALIDAÇÃO ---
 const ocorrenciaSchema = z.object({
   naturezaId: z.string().min(1, "Selecione uma natureza"),
   grupoId: z.string().min(1, "Selecione um grupo"),
   subgrupoId: z.string().min(1, "Selecione um subgrupo"),
   bairroId: z.string().min(1, "Selecione o bairro"),
-  logradouro: z.string().optional(),
+  logradouro: z.string().min(3, "Informe o logradouro ou use o GPS"), 
   formaAcervoId: z.string().min(1, "Selecione a forma de acionamento"),
   nrAviso: z.string().optional(),
   observacoes: z.string().optional(),
 });
 
-// Inferência do tipo TypeScript a partir do schema
 type OcorrenciaFormData = z.infer<typeof ocorrenciaSchema>;
 
-// --- TIPOS AUXILIARES ---
 interface Option {
   id: string;
   label: string;
 }
 
 // --- COMPONENTES INTERNOS ---
+
 const SelectionModal = ({ 
   visible, onClose, title, options, onSelect, loading 
 }: { 
@@ -50,16 +49,16 @@ const SelectionModal = ({
     <View style={tw`flex-1 justify-end bg-black/60`}>
       <View style={tw`bg-white rounded-t-3xl max-h-[60%]`}>
         <View style={tw`flex-row justify-between items-center p-5 border-b border-gray-100`}>
-          <Text style={tw`text-lg font-bold text-slate-800`}>{title}</Text>
+          <Text style={[tw`text-lg font-bold`, { color: COLORS.text }]}>{title}</Text>
           <TouchableOpacity onPress={onClose} style={tw`p-1`}>
-            <X size={24} color="#64748b" />
+            <X size={24} color={COLORS.textLight} />
           </TouchableOpacity>
         </View>
         
         {loading ? (
           <View style={tw`p-10 items-center`}>
-            <ActivityIndicator size="large" color="#061C43" />
-            <Text style={tw`mt-4 text-slate-500`}>Carregando opções...</Text>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={[tw`mt-4`, { color: COLORS.textLight }]}>Carregando opções...</Text>
           </View>
         ) : (
           <FlatList
@@ -72,11 +71,11 @@ const SelectionModal = ({
                 onPress={() => { onSelect(item); onClose(); }}
               >
                 <View style={tw`w-2 h-2 rounded-full bg-slate-300 mr-3`} />
-                <Text style={tw`text-base text-slate-700 font-medium`}>{item.label}</Text>
+                <Text style={[tw`text-base font-medium`, { color: COLORS.text }]}>{item.label}</Text>
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <Text style={tw`text-center text-slate-400 py-6`}>Nenhuma opção disponível.</Text>
+              <Text style={[tw`text-center py-6`, { color: COLORS.textLight }]}>Nenhuma opção disponível.</Text>
             }
           />
         )}
@@ -87,7 +86,7 @@ const SelectionModal = ({
 
 const SelectInput = ({ label, value, placeholder, onPress, disabled = false, error }: any) => (
   <View style={tw`mb-4`}>
-    <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>{label}</Text>
+    <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>{label}</Text>
     <TouchableOpacity 
       style={[
         tw`flex-row justify-between items-center bg-white border rounded-xl p-4 h-14`,
@@ -96,7 +95,7 @@ const SelectInput = ({ label, value, placeholder, onPress, disabled = false, err
       onPress={onPress}
       disabled={disabled}
     >
-      <Text style={value ? tw`text-slate-800 font-medium` : tw`text-slate-400`}>
+      <Text style={value ? [tw`font-medium`, { color: COLORS.text }] : [tw``, { color: COLORS.textLight }]}>
         {value || placeholder}
       </Text>
       <ChevronDown size={20} color={disabled ? "#cbd5e1" : "#64748b"} />
@@ -117,29 +116,30 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
       {steps.map((step, index) => {
         const isCompleted = step.id < currentStep;
         const isActive = step.id === currentStep;
+        const color = isCompleted || isActive ? COLORS.primary : '#E2E8F0'; 
         
         return (
           <React.Fragment key={step.id}>
             <View style={tw`items-center mx-1`}>
               <View style={[
                 tw`w-10 h-10 rounded-full items-center justify-center mb-1 border-2`,
-                isCompleted ? tw`bg-green-500 border-green-500` : (isActive ? tw`bg-[#061C43] border-[#061C43]` : tw`bg-gray-200 border-gray-200`)
+                { backgroundColor: isActive ? color : (isCompleted ? COLORS.success : '#E2E8F0'), borderColor: isCompleted ? COLORS.success : color }
               ]}>
                 {isCompleted ? (
                   <Check size={20} color="white" strokeWidth={3} />
                 ) : (
-                  <Text style={tw`text-white font-bold text-base`}>{step.id}</Text>
+                  <Text style={[tw`font-bold text-base`, { color: isActive ? 'white' : COLORS.textLight }]}>{step.id}</Text>
                 )}
               </View>
               <Text style={[
                 tw`text-xs font-bold`,
-                isActive || isCompleted ? tw`text-slate-900` : tw`text-slate-400`
+                { color: isActive || isCompleted ? COLORS.text : COLORS.textLight }
               ]}>
                 {step.label}
               </Text>
             </View>
             {index < steps.length - 1 && (
-              <View style={[tw`w-10 h-1 mb-4 mx-1 rounded-full`, isCompleted ? tw`bg-green-500` : tw`bg-gray-200`]} />
+              <View style={[tw`w-10 h-1 mb-4 mx-1 rounded-full`, { backgroundColor: isCompleted ? COLORS.success : '#E2E8F0' }]} />
             )}
           </React.Fragment>
         );
@@ -149,48 +149,37 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
 };
 
 // --- TELA PRINCIPAL ---
+
 export const NovaOcorrenciaScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const { isOnline, addToQueue } = useSync();
   const [step, setStep] = useState(1);
+  
+  // Hook de Mutação 
   const createMutation = useCreateOcorrencia();
   const isSubmitting = createMutation.isPending;
 
-  // React Hook Form
   const { control, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<OcorrenciaFormData>({
     resolver: zodResolver(ocorrenciaSchema),
-    defaultValues: {
-      logradouro: '',
-      nrAviso: '',
-      observacoes: ''
-    }
+    defaultValues: { logradouro: '', nrAviso: '', observacoes: '' }
   });
 
-  // Watchers para dependências (labels e lógica de cascata)
   const watchNatureza = watch('naturezaId');
   const watchGrupo = watch('grupoId');
 
-  // Estado para Labels 
-  const [labels, setLabels] = useState({
-    natureza: '', grupo: '', subgrupo: '', bairro: '', forma: ''
-  });
-
-  // Dados das Listas
+  const [labels, setLabels] = useState({ natureza: '', grupo: '', subgrupo: '', bairro: '', forma: '' });
   const [naturezas, setNaturezas] = useState<Option[]>([]);
   const [grupos, setGrupos] = useState<Option[]>([]);
   const [subgrupos, setSubgrupos] = useState<Option[]>([]);
   const [bairros, setBairros] = useState<Option[]>([]);
   const [formas, setFormas] = useState<Option[]>([]);
 
-  // Controle Modais
   const [modalType, setModalType] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(false);
-
-  // Geolocalização
+  
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [loadingLoc, setLoadingLoc] = useState(false);
 
-  // Carga Inicial
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -200,7 +189,6 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             api.get('/api/v3/bairros'),
             api.get('/api/v3/formas-acervo')
           ]);
-
           const naturezasData = resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao }));
           const bairrosData = resBai.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro }));
           const formasData = resFor.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao }));
@@ -213,11 +201,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           await AsyncStorage.setItem('@SORO:cache_bairros', JSON.stringify(bairrosData));
           await AsyncStorage.setItem('@SORO:cache_formas', JSON.stringify(formasData));
         } else {
-          // Offline Fallback
           const cachedNat = await AsyncStorage.getItem('@SORO:cache_naturezas');
           const cachedBai = await AsyncStorage.getItem('@SORO:cache_bairros');
           const cachedFor = await AsyncStorage.getItem('@SORO:cache_formas');
-
           if (cachedNat) setNaturezas(JSON.parse(cachedNat));
           if (cachedBai) setBairros(JSON.parse(cachedBai));
           if (cachedFor) setFormas(JSON.parse(cachedFor));
@@ -229,7 +215,6 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     loadInitialData();
   }, [isOnline]);
 
-  // Carregar Grupos
   const handleSelectNatureza = async (item: Option) => {
     setValue('naturezaId', item.id);
     setValue('grupoId', ''); 
@@ -240,9 +225,8 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     const cacheKey = `@SORO:cache_grupos_${item.id}`; 
     try {
        if (isOnline) {
-          const res = await api.get('/api/v3/grupos', { params: { naturezaId: item.id } }); // Filtro na query
+          const res = await api.get('/api/v3/grupos', { params: { naturezaId: item.id } });
           const mapped = res.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
-          
           setGrupos(mapped);
           await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped));
        } else {
@@ -253,7 +237,6 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setLoadingList(false);
   };
 
-  // Carregar Subgrupos 
   const handleSelectGrupo = async (item: Option) => {
     setValue('grupoId', item.id);
     setValue('subgrupoId', '');
@@ -263,9 +246,8 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     const cacheKey = `@SORO:cache_subgrupos_${item.id}`;
     try {
        if (isOnline) {
-          const res = await api.get('/api/v3/subgrupos', { params: { grupoId: item.id } }); // Filtro na query
+          const res = await api.get('/api/v3/subgrupos', { params: { grupoId: item.id } });
           const mapped = res.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
-          
           setSubgrupos(mapped);
           await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped));
        } else {
@@ -284,8 +266,53 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         Alert.alert('Permissão negada', 'Precisamos de acesso à localização.');
         return;
       }
+
+      // 1. Obtém Coordenadas
       let currentLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setLocation(currentLocation);
+
+      // 2. Geocodificação Reversa (Lat/Long -> Endereço)
+      if (currentLocation) {
+        try {
+          const reverseGeocode = await Location.reverseGeocodeAsync({
+            latitude: currentLocation.coords.latitude,
+            longitude: currentLocation.coords.longitude
+          });
+
+          if (reverseGeocode.length > 0) {
+            const address = reverseGeocode[0];
+            console.log("Endereço encontrado:", address);
+
+            // A. Preenche Logradouro (Rua)
+            if (address.street) {
+              setValue('logradouro', address.street);
+            }
+
+            // B. Tenta Preencher o Bairro Automaticamente
+            // O campo 'district' ou 'subregion' costuma trazer o bairro no Expo Location
+            const bairroGPS = address.district || address.subregion;
+
+            if (bairroGPS) {
+              // Função auxiliar para normalizar texto (tira acentos e caixa alta)
+              const normalize = (str: string) => 
+                str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+              const termoGPS = normalize(bairroGPS);
+
+              // Procura na lista de bairros
+              const bairroMatch = bairros.find(b => normalize(b.label) === termoGPS);
+
+              if (bairroMatch) {
+                // Se achou, seleciona o ID e atualiza o Label visual
+                setValue('bairroId', bairroMatch.id);
+                setLabels(prev => ({ ...prev, bairro: bairroMatch.label }));
+              }
+            }
+          }
+        } catch (geoError) { 
+          console.log("Erro reverse geo", geoError); 
+        }
+      }
     } catch (error) {
       Alert.alert('Erro', 'Verifique o GPS.');
     } finally {
@@ -293,86 +320,66 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     }
   };
 
+  // Auto-disparo do GPS na Fase 2
+  useEffect(() => {
+    if (step === 2 && !location) {
+      handleGetLocation();
+    }
+  }, [step]);
+
   const handleNextStep = async () => {
     let isValid = false;
     if (step === 1) isValid = await trigger(['naturezaId', 'grupoId', 'subgrupoId']);
-    if (step === 2) isValid = await trigger(['bairroId']); 
-
+    if (step === 2) isValid = await trigger(['bairroId', 'logradouro']); // Validação rigorosa aqui
     if (isValid) setStep(prev => prev + 1);
   };
 
   const onSubmit = async (data: OcorrenciaFormData) => {
     const now = new Date(); 
-
     const payload = {
-    data_acionamento: now.toISOString(),
-    hora_acionamento: now.toISOString(),
-    id_subgrupo_fk: data.subgrupoId,
-    id_bairro_fk: data.bairroId,
-    id_forma_acervo_fk: data.formaAcervoId,
-    nr_aviso: data.nrAviso || undefined,
-    observacoes: data.observacoes, 
-    localizacao: {
-        logradouro: data.logradouro,
-        latitude: location?.coords.latitude || null, 
-        longitude: location?.coords.longitude || null
+      data_acionamento: now.toISOString(),
+      hora_acionamento: now.toISOString(),
+      id_subgrupo_fk: data.subgrupoId,
+      id_bairro_fk: data.bairroId,
+      id_forma_acervo_fk: data.formaAcervoId,
+      nr_aviso: data.nrAviso || undefined,
+      observacoes: data.observacoes, 
+      localizacao: {
+          logradouro: data.logradouro,
+          latitude: location?.coords.latitude || null, 
+          longitude: location?.coords.longitude || null
+      }
+    };
+
+    if (isOnline) {
+      // Usa a Mutação do React Query 
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+           Alert.alert("Sucesso!", "Ocorrência enviada.", [
+              { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
+           ]);
+        }
+      });
+    } else {
+      await addToQueue(payload);
+      navigation.navigate('MinhasOcorrencias');
     }
   };
 
-    if (isOnline) {
-    // USO DO REACT QUERY
-    createMutation.mutate(payload, {
-      onSuccess: () => {
-         Alert.alert("Sucesso!", "Ocorrência enviada.", [
-            { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
-         ]);
-      }
-    });
-  } else {
-    // Lógica Offline
-    await addToQueue(payload);
-    navigation.navigate('MinhasOcorrencias');
-  }
-};
-
-  // --- RENDER ---
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
           <>
-            <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Classificação</Text>
-            
-            <SelectInput 
-              label="Natureza" 
-              placeholder="Selecione..." 
-              value={labels.natureza} 
-              onPress={() => setModalType('natureza')} 
-              error={errors.naturezaId?.message}
-            />
-
-            <SelectInput 
-              label="Grupo" 
-              placeholder="Selecione..." 
-              value={labels.grupo} 
-              onPress={() => setModalType('grupo')} 
-              disabled={!watchNatureza} 
-              error={errors.grupoId?.message}
-            />
-
-            <SelectInput 
-              label="Subgrupo" 
-              placeholder="Selecione..." 
-              value={labels.subgrupo} 
-              onPress={() => setModalType('subgrupo')} 
-              disabled={!watchGrupo} 
-              error={errors.subgrupoId?.message}
-            />
+            <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Classificação</Text>
+            <SelectInput label="Natureza" placeholder="Selecione..." value={labels.natureza} onPress={() => setModalType('natureza')} error={errors.naturezaId?.message} />
+            <SelectInput label="Grupo" placeholder="Selecione..." value={labels.grupo} onPress={() => setModalType('grupo')} disabled={!watchNatureza} error={errors.grupoId?.message} />
+            <SelectInput label="Subgrupo" placeholder="Selecione..." value={labels.subgrupo} onPress={() => setModalType('subgrupo')} disabled={!watchGrupo} error={errors.subgrupoId?.message} />
             
             {!isOnline && (
               <View style={tw`mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex-row items-start`}>
-                 <WifiOff size={20} color="#ca8a04" style={tw`mr-3 mt-1`} />
-                 <Text style={tw`flex-1 text-yellow-800 text-xs`}>Modo Offline Ativo. O registro será sincronizado depois.</Text>
+                 <WifiOff size={20} color={COLORS.warning} style={tw`mr-3 mt-1`} />
+                 <Text style={[tw`flex-1 text-xs`, { color: '#854D0E' }]}>Modo Offline Ativo. O registro será sincronizado depois.</Text>
               </View>
             )}
           </>
@@ -380,47 +387,37 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       case 2:
         return (
           <>
-            <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Localização</Text>
-            
+            <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Localização</Text>
             <TouchableOpacity 
               style={[tw`py-3 rounded-xl border flex-row items-center justify-center mb-4`, location ? tw`bg-green-50 border-green-200` : tw`bg-blue-50 border-blue-200`]}
               onPress={handleGetLocation}
               disabled={loadingLoc}
             >
-               {loadingLoc ? <ActivityIndicator size="small" color="#2563eb" /> : location ? 
-                  <><Check size={20} color="#16a34a" style={tw`mr-2`} /><Text style={tw`text-green-700 font-bold`}>GPS OK</Text></> : 
-                  <><MapPin size={20} color="#2563eb" style={tw`mr-2`} /><Text style={tw`text-blue-600 font-bold`}>Usar GPS</Text></>
+               {loadingLoc ? <ActivityIndicator size="small" color={COLORS.secondary} /> : location ? 
+                  <><Check size={20} color={COLORS.success} style={tw`mr-2`} /><Text style={[tw`font-bold`, { color: COLORS.success }]}>GPS OK</Text></> : 
+                  <><MapPin size={20} color={COLORS.secondary} style={tw`mr-2`} /><Text style={[tw`font-bold`, { color: COLORS.secondary }]}>Usar GPS</Text></>
                }
             </TouchableOpacity>
 
-            <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Município</Text>
-              <View style={tw`bg-gray-100 border border-gray-200 rounded-xl p-4 h-14 justify-center`}>
-                 <Text style={tw`text-slate-500 font-medium`}>Recife</Text>
-              </View>
-            </View>
-
-            <SelectInput 
-              label="Bairro" 
-              placeholder="Selecione..." 
-              value={labels.bairro} 
-              onPress={() => setModalType('bairro')} 
-              error={errors.bairroId?.message}
-            />
+            <SelectInput label="Município (Fixo)" placeholder="Recife" value="Recife" onPress={() => {}} disabled />
+            <SelectInput label="Bairro" placeholder="Selecione..." value={labels.bairro} onPress={() => setModalType('bairro')} error={errors.bairroId?.message} />
             
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Logradouro</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Logradouro</Text>
               <Controller
                 control={control}
                 name="logradouro"
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput 
-                     style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-14`}
-                     placeholder="Ex: Rua dos Navegantes"
-                     onBlur={onBlur}
-                     onChangeText={onChange}
-                     value={value}
-                  />
+                  <View>
+                    <TextInput 
+                       style={[tw`bg-white border rounded-xl p-4 text-base h-14`, errors.logradouro ? tw`border-red-500` : tw`border-gray-300`, { color: COLORS.text }]}
+                       placeholder="Ex: Rua dos Navegantes"
+                       onBlur={onBlur}
+                       onChangeText={onChange}
+                       value={value}
+                    />
+                    {errors.logradouro && <Text style={tw`text-red-500 text-xs mt-1`}>{errors.logradouro.message}</Text>}
+                  </View>
                 )}
               />
             </View>
@@ -429,47 +426,25 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       case 3:
         return (
           <>
-            <Text style={tw`text-2xl font-bold text-slate-900 mb-6`}>Detalhes</Text>
-
-            <SelectInput 
-              label="Forma de Acionamento" 
-              placeholder="Selecione..." 
-              value={labels.forma} 
-              onPress={() => setModalType('forma')} 
-              error={errors.formaAcervoId?.message}
-            />
-
+            <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Detalhes</Text>
+            <SelectInput label="Forma de Acionamento" placeholder="Selecione..." value={labels.forma} onPress={() => setModalType('forma')} error={errors.formaAcervoId?.message} />
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Número do Aviso (Opcional)</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Número do Aviso (Opcional)</Text>
               <Controller
                 control={control}
                 name="nrAviso"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput 
-                     style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-14`}
-                     placeholder="091"
-                     keyboardType="numeric"
-                     onChangeText={onChange}
-                     value={value}
-                  />
+                  <TextInput style={[tw`bg-white border border-gray-300 rounded-xl p-4 text-base h-14`, { color: COLORS.text }]} placeholder="091" keyboardType="numeric" onChangeText={onChange} value={value} />
                 )}
               />
             </View>
-
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Observações</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Observações</Text>
               <Controller
                 control={control}
                 name="observacoes"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput 
-                     style={tw`bg-white border border-gray-300 rounded-xl p-4 text-base text-slate-800 h-32`}
-                     placeholder="Detalhes adicionais..."
-                     multiline
-                     textAlignVertical="top"
-                     onChangeText={onChange}
-                     value={value}
-                  />
+                  <TextInput style={[tw`bg-white border border-gray-300 rounded-xl p-4 text-base h-32`, { color: COLORS.text }]} placeholder="Detalhes adicionais..." multiline textAlignVertical="top" onChangeText={onChange} value={value} />
                 )}
               />
             </View>
@@ -479,12 +454,12 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white`}>
+    <SafeAreaView style={[tw`flex-1`, { backgroundColor: COLORS.background }]}>
       <View style={tw`flex-row items-center px-5 py-4 border-b border-gray-100`}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={tw`p-2 -ml-2`}>
-          <ArrowLeft color="#0F172A" size={24} />
+          <ArrowLeft color={COLORS.text} size={24} />
         </TouchableOpacity>
-        <Text style={tw`text-lg font-bold text-slate-900 ml-2`}>Nova Ocorrência</Text>
+        <Text style={[tw`text-lg font-bold ml-2`, { color: COLORS.text }]}>Nova Ocorrência</Text>
       </View>
 
       <StepIndicator currentStep={step} />
@@ -499,10 +474,10 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         <TouchableOpacity 
           style={[
             tw`py-4 rounded-xl items-center shadow-sm flex-row justify-center`,
-            step === 3 ? tw`bg-[#10B981]` : tw`bg-[#061C43]`
+            { backgroundColor: step === 3 ? COLORS.success : COLORS.primary }
           ]}
           onPress={step < 3 ? handleNextStep : handleSubmit(onSubmit)}
-          disabled={isSubmitting}
+          disabled={isSubmitting} // Bloqueia se o React Query estiver enviando
         >
           {isSubmitting ? <ActivityIndicator color="white" /> : (
             <>
@@ -515,7 +490,6 @@ export const NovaOcorrenciaScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Modais */}
       <SelectionModal visible={modalType === 'natureza'} title="Natureza" options={naturezas} onClose={() => setModalType(null)} onSelect={handleSelectNatureza} />
       <SelectionModal visible={modalType === 'grupo'} title="Grupo" options={grupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={handleSelectGrupo} />
       <SelectionModal visible={modalType === 'subgrupo'} title="Subgrupo" options={subgrupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={(i) => { setValue('subgrupoId', i.id); setLabels(prev => ({...prev, subgrupo: i.label})); }} />
