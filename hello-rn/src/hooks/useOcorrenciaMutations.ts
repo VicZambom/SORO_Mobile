@@ -25,16 +25,14 @@ interface AtualizaStatusData {
   nr_aviso?: string | null;
 }
 
-// Hook para CRIAR Ocorrência
+// 1. Hook para CRIAR Ocorrência
 export const useCreateOcorrencia = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: NovaOcorrenciaData) => api.post('/api/v1/ocorrencias', data),
+    mutationFn: (data: NovaOcorrenciaData) => api.post('/api/v3/ocorrencias', data),
     onSuccess: () => {
-      // Invalida o cache para forçar a lista "PENDENTE" a atualizar
       queryClient.invalidateQueries({ queryKey: ['ocorrencias'] });
-        Alert.alert("Sucesso", "Ocorrência enviada para a central."); 
     },
     onError: (error: any) => {
       const msg = error.response?.data?.error || "Falha ao criar ocorrência.";
@@ -43,19 +41,31 @@ export const useCreateOcorrencia = () => {
   });
 };
 
-// Hook para ATUALIZAR Status
+// 2. Hook para ATUALIZAR Status 
 export const useUpdateStatusOcorrencia = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }: AtualizaStatusData) => 
-      api.put(`/api/v1/ocorrencias/${id}`, { ...data, relacionado_eleicao: false, data_execucao_servico: null }),
+    mutationFn: ({ id, status_situacao, nr_aviso }: AtualizaStatusData) => {
+      const payload: any = {
+        status_situacao,
+        relacionado_eleicao: false,
+        nr_aviso
+      };
+
+      if (status_situacao === 'CONCLUIDO') {
+        payload.data_execucao_servico = new Date().toISOString();
+      } else {
+        payload.data_execucao_servico = null;
+      }
+
+      return api.put(`/api/v3/ocorrencias/${id}`, payload);
+    },
     
-    onSuccess: (_, variables) => {
-      // Atualiza todas as listas e o detalhe específico dessa ocorrência
+    onSuccess: () => {
+      // Força a atualização de todas as listas 
       queryClient.invalidateQueries({ queryKey: ['ocorrencias'] });
     },
-
     onError: (error: any) => {
       console.error(error);
       Alert.alert("Erro", "Não foi possível atualizar o status.");
