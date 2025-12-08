@@ -100,7 +100,7 @@ Antes de começar, certifique-se de ter instalado em sua máquina:
 
 O código fonte está localizado na pasta `src/`:
 
-src/
+```src/ 
 ├── components/      # Componentes reutilizáveis (Card, Header, Input, etc.)
 ├── config/          # Configurações globais
 ├── constants/       # Constantes de tema (Cores, Fontes)
@@ -110,7 +110,7 @@ src/
 ├── screens/         # Telas da aplicação (Login, Dashboard, Detalhes, etc.)
 ├── services/        # Configuração do Axios (API)
 └── types/           # Definições de tipos TypeScript globais
-
+```
 ---
 
 ## 📱 Telas Principais
