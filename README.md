@@ -100,16 +100,16 @@ Antes de começar, certifique-se de ter instalado em sua máquina:
 
 O código fonte está localizado na pasta `src/`:
 
-src/ 
-  ├── components/ # Componentes reutilizáveis (Card, Header, Input, etc.) 
-  ├── config/ # Configurações globais 
-  ├── constants/ # Constantes de tema (Cores, Fontes) 
-  ├── context/ # Contextos globais (Auth, Socket, Sync/Offline) 
-  ├── hooks/ # Custom Hooks (useOcorrencias, useMutations) 
-  ├── navigation/ # Configuração de rotas (AppNavigator) 
-  ├── screens/ # Telas da aplicação (Login, Dashboard, Detalhes, etc.) 
-  ├── services/ # Configuração do Axios (API) 
-  └── types/ # Definições de tipos TypeScript globais
+src/
+├── components/      # Componentes reutilizáveis (Card, Header, Input, etc.)
+├── config/          # Configurações globais
+├── constants/       # Constantes de tema (Cores, Fontes)
+├── context/         # Contextos globais (Auth, Socket, Sync/Offline)
+├── hooks/           # Custom Hooks (useOcorrencias, useMutations)
+├── navigation/      # Configuração de rotas (AppNavigator)
+├── screens/         # Telas da aplicação (Login, Dashboard, Detalhes, etc.)
+├── services/        # Configuração do Axios (API)
+└── types/           # Definições de tipos TypeScript globais
 
 ---
 
