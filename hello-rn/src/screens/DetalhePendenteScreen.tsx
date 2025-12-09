@@ -74,50 +74,38 @@ export const DetalhePendenteScreen: React.FC = () => {
   }, [id]);
 
   // --- ATUALIZAR STATUS (PUT) ---
-  const handleStatusUpdate = (novoStatus: 'EM_ANDAMENTO' | 'CONCLUIDO') => {
+  const handleStatusUpdate = (novoStatus: 'EM_ANDAMENTO') => {
     if (!ocorrencia) return;
 
-    updateMutation.mutate({
-        id: ocorrencia.id_ocorrencia,
-        status_situacao: novoStatus,
-        nr_aviso: ocorrencia.nr_aviso
-    }, {
-        onSuccess: () => {
-            // Atualiza estado local apenas para feedback visual imediato se quiser
-            // O React Query já vai disparar re-render ao invalidar, 
-            // mas podemos forçar a UI aqui se necessário
-            setOcorrencia((prev) => prev ? { ...prev, status_situacao: novoStatus } : null);
-
-            if (novoStatus === 'EM_ANDAMENTO') {
-                Alert.alert('Sucesso', 'Deslocamento iniciado!');
-            } else if (novoStatus === 'CONCLUIDO') {
-                Alert.alert('Sucesso', 'Chegada registrada!');
-                navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
-            }
+    // Confirmação antes de iniciar
+    Alert.alert(
+      "Iniciar Ocorrência",
+      "Confirmar deslocamento e início do atendimento?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          onPress: () => {
+            updateMutation.mutate({
+                id: ocorrencia.id_ocorrencia,
+                status_situacao: novoStatus,
+                nr_aviso: ocorrencia.nr_aviso
+            }, {
+                onSuccess: () => {
+                    Alert.alert('Sucesso', 'Ocorrência iniciada!');
+                    navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
+                }
+            });
+          }
         }
-    });
-};
+      ]
+    );
+  };
 
   const handleBotaoPrincipal = () => {
     if (!ocorrencia) return;
-
     if (ocorrencia.status_situacao === 'PENDENTE') {
       handleStatusUpdate('EM_ANDAMENTO');
-      
-    } else if (ocorrencia.status_situacao === 'EM_ANDAMENTO') {
-      Alert.alert(
-        "Registrar Chegada",
-        "Confirma a chegada da viatura ao local da ocorrência?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          { 
-            text: "Confirmar Chegada", 
-            onPress: () => {
-              navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
-            } 
-          }
-        ]
-      );
     }
   };
 
@@ -189,12 +177,11 @@ export const DetalhePendenteScreen: React.FC = () => {
 
   // Define cores e textos baseados no status REAL da API
   const isPendente = ocorrencia.status_situacao === 'PENDENTE';
-  const isEmDeslocamento = ocorrencia.status_situacao === 'EM_ANDAMENTO';
 
   const headerColor = isPendente ? '#FECACA' : '#FFEDD5'; // Vermelho ou Laranja claro
   const pillColor = isPendente ? '#DC2626' : '#EA580C'; // Vermelho ou Laranja escuro
   const statusText = isPendente ? 'PENDENTE • AGUARDANDO EQUIPE' : 'EM DESLOCAMENTO';
-  const buttonText = isPendente ? 'INICIAR DESLOCAMENTO' : 'REGISTRAR CHEGADA';
+  const buttonText = isPendente ? 'INICIAR OCORRÊNCIA' : 'IR PARA DETALHES';
 
   return (
     <View style={tw`flex-1 bg-gray-50`}>
@@ -320,7 +307,10 @@ export const DetalhePendenteScreen: React.FC = () => {
                 tw`py-4 rounded-xl shadow-lg flex-row items-center justify-center`,
                 isUpdating ? tw`bg-gray-400` : tw`bg-[#061C43]`
             ]}
-            onPress={handleBotaoPrincipal}
+            onPress={() => {
+                if(isPendente) handleBotaoPrincipal();
+                else navigation.replace('DetalheAndamento', { id: ocorrencia.id_ocorrencia });
+            }}
             activeOpacity={0.9}
             disabled={isUpdating}
         >
@@ -328,12 +318,7 @@ export const DetalhePendenteScreen: React.FC = () => {
                 <ActivityIndicator color="white" />
             ) : (
                 <>
-                    {isPendente ? (
-                        <NavigationIcon size={20} color="white" style={tw`mr-2`} />
-                    ) : (
-                        <CheckCircle size={20} color="white" style={tw`mr-2`} />
-                    )}
-                    
+                    <NavigationIcon size={20} color="white" style={tw`mr-2`} />
                     <Text style={tw`text-white font-bold text-base tracking-wider uppercase`}>
                         {buttonText}
                     </Text>
@@ -341,7 +326,6 @@ export const DetalhePendenteScreen: React.FC = () => {
             )}
         </TouchableOpacity>
       </View>
-
     </View>
   );
 };

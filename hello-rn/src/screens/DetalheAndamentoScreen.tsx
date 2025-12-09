@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, MapPin, Clock, Camera, Edit2, MoreVertical, User, CheckCircle } from 'lucide-react-native';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
+import { FileSignature } from 'lucide-react-native';
 
 import api from '../services/api';
 import { AppNavigationProp, RootStackParamList } from '../types/navigation';
@@ -57,60 +58,76 @@ interface OcorrenciaFull {
 
 const Tab = createMaterialTopTabNavigator();
 
-// --- COMPONENTES DAS ABAS (Mantidos iguais, apenas usando COLORS) ---
+// --- COMPONENTES DAS ABAS ---
 const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
-  const steps = [
-    { label: 'Ocorrência Gerada', time: ocorrencia.hora_acionamento, active: true },
-    { label: 'Deslocamento Iniciado', time: null, active: true }, // Simplificação visual
-    { 
-      label: 'Chegada ao Local', 
-      time: ocorrencia.viaturas_usadas[0]?.horario_chegada_local, 
-      active: !!ocorrencia.viaturas_usadas[0]?.horario_chegada_local,
-      sub: ocorrencia.viaturas_usadas[0] ? `Viatura ${ocorrencia.viaturas_usadas[0].viatura.numero_viatura}` : null
-    },
-  ];
+  const assinatura = ocorrencia.midias.find(m => 
+    m.url_caminho.toLowerCase().includes('assinatura')
+  );
 
-  const formatTime = (iso: string | null) => 
-    iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
 
   return (
     <ScrollView style={tw`flex-1 bg-white p-5`}>
+      {/* Bloco de Informações */}
       <View style={tw`bg-white rounded-xl p-5 shadow-sm mb-5 border border-gray-100`}>
-        <Text style={[tw`text-lg font-bold mb-4`, { color: COLORS.text }]}>Informações</Text>
+        <Text style={[tw`text-lg font-bold mb-4`, { color: COLORS.text }]}>Informações da Ocorrência</Text>
+        
         <View style={tw`flex-row flex-wrap`}>
-          <View style={tw`w-1/2 mb-4`}>
-            <Text style={[tw`text-xs uppercase`, { color: COLORS.textLight }]}>Natureza</Text>
-            <Text style={[tw`text-sm font-bold`, { color: COLORS.text }]}>{ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}</Text>
+          <View style={tw`w-1/2 mb-4 pr-2`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Natureza</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}
+            </Text>
           </View>
-          <View style={tw`w-1/2 mb-4`}>
-            <Text style={[tw`text-xs uppercase`, { color: COLORS.textLight }]}>Subgrupo</Text>
-            <Text style={[tw`text-sm font-bold`, { color: COLORS.text }]}>{ocorrencia.subgrupo.descricao_subgrupo}</Text>
+          
+          <View style={tw`w-1/2 mb-4 pl-2`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Nº Aviso</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.nr_aviso || 'S/N'}
+            </Text>
           </View>
-          <View style={tw`w-1/2 mb-4`}>
-             <Text style={[tw`text-xs uppercase`, { color: COLORS.textLight }]}>Nº do Aviso</Text>
-             <Text style={[tw`text-sm font-bold`, { color: COLORS.text }]}>{ocorrencia.nr_aviso || 'S/N'}</Text>
+
+          <View style={tw`w-full mb-4`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Subgrupo (Detalhe)</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.subgrupo.descricao_subgrupo}
+            </Text>
+          </View>
+
+           <View style={tw`w-full`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Forma de Acionamento</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.forma_acervo.descricao}
+            </Text>
           </View>
         </View>
       </View>
       
-      <View style={tw`bg-white rounded-xl p-5 shadow-sm mb-20 border border-gray-100`}>
-        <Text style={[tw`text-lg font-bold mb-4`, { color: COLORS.text }]}>Linha do Tempo</Text>
-        {steps.map((step, i) => (
-          <View key={i} style={tw`flex-row mb-6`}>
-             {i !== steps.length - 1 && (
-               <View style={tw`absolute left-[9px] top-4 bottom-[-24px] w-[2px] bg-gray-200`} />
-             )}
-             <View style={[tw`w-5 h-5 rounded-full items-center justify-center z-10`, { backgroundColor: step.active ? COLORS.secondary : '#cbd5e1' }]} />
-             <View style={tw`ml-4 flex-1`}>
-               <View style={tw`flex-row justify-between`}>
-                 <Text style={[tw`text-sm font-bold`, { color: COLORS.text }]}>{step.label}</Text>
-                 <Text style={[tw`text-xs`, { color: COLORS.textLight }]}>{formatTime(step.time)}</Text>
-               </View>
-               {step.sub && <Text style={[tw`text-xs mt-1`, { color: COLORS.textLight }]}>{step.sub}</Text>}
+      {/* Bloco de Assinatura */}
+      <Text style={[tw`text-lg font-bold mb-3`, { color: COLORS.text }]}>Assinatura do Responsável</Text>
+      
+      <View style={tw`bg-slate-50 rounded-xl border border-slate-200 overflow-hidden min-h-[150px] justify-center items-center`}>
+        {assinatura ? (
+          <View style={tw`w-full h-48 bg-white`}>
+             <Image 
+                source={{ uri: assinatura.url_caminho }} 
+                style={tw`w-full h-full`} 
+                resizeMode="contain" 
+             />
+             <View style={tw`absolute bottom-2 right-2 bg-green-100 px-2 py-1 rounded`}>
+                <Text style={tw`text-green-700 text-xs font-bold`}>Assinado Digitalmente</Text>
              </View>
           </View>
-        ))}
+        ) : (
+          <View style={tw`items-center py-6`}>
+            <FileSignature size={32} color={COLORS.textLight} />
+            <Text style={[tw`text-sm mt-2 text-center px-10`, { color: COLORS.textLight }]}>
+              Nenhuma assinatura registrada ainda. Use o menu de ações para coletar.
+            </Text>
+          </View>
+        )}
       </View>
+      
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 };
