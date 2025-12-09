@@ -1,10 +1,10 @@
-// src/context/SyncContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, ToastAndroid, Platform } from 'react-native';
 import api from '../services/api';
 import { AxiosError } from 'axios';
+import { useAuth } from './AuthContext'; 
 
 interface PendingOcorrencia {
   id_temp: string;
@@ -26,16 +26,26 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isOnline, setIsOnline] = useState(true);
   const [pendingQueue, setPendingQueue] = useState<PendingOcorrencia[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  //Pegar estado de autenticação para garantir token
+  const { user } = useAuth(); 
 
   // Monitorar conexão em tempo real
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOnline(!!state.isConnected);
+      const online = !!state.isConnected;
+      setIsOnline(online);
+      
+      // Se voltar a ficar online e tiver fila, sincroniza.
+      if (online && pendingQueue.length > 0) {
+        console.log("Conexão restabelecida. Tentando sincronizar...");
+        syncNow();
+      }
     });
     return () => unsubscribe();
-  }, []);
+  }, [pendingQueue]); // Dependência adicionada para monitorar a fila também
 
-  // Carregar fila salva ao iniciar o app
+  // Carregar fila salva ao iniciar
   useEffect(() => {
     async function loadQueue() {
       try {
@@ -50,59 +60,44 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadQueue();
   }, []);
 
-  // Helper para atualizar estado e disco simultaneamente
   const persistQueue = async (queue: PendingOcorrencia[]) => {
     setPendingQueue(queue);
     await AsyncStorage.setItem('@SORO:queue', JSON.stringify(queue));
   };
 
-  // Função para salvar na fila (Offline)
   const addToQueue = async (payload: any) => {
     const newItem: PendingOcorrencia = {
       id_temp: new Date().getTime().toString(),
-      payload,
+      payload, 
       timestamp: Date.now(),
     };
 
     const newQueue = [...pendingQueue, newItem];
     await persistQueue(newQueue);
     
-    Alert.alert('Modo Offline', 'Sem conexão no momento. A ocorrência foi salva e será enviada assim que possível.');
   };
 
-  // Função de Sincronização 
   const syncNow = async () => {
-    if (!isOnline) {
-      Alert.alert('Sem conexão', 'Conecte-se à internet para sincronizar.');
-      return;
+    // Verificações de segurança
+    const state = await NetInfo.fetch();
+    if (!state.isConnected) {
+
+       return;
     }
 
-    if (pendingQueue.length === 0) {
-      if (Platform.OS === 'android') {
-          ToastAndroid.show('Tudo sincronizado!', ToastAndroid.SHORT);
-      } else {
-          Alert.alert('Tudo certo', 'Não há registros pendentes.');
-      }
-      return;
-    }
+    if (pendingQueue.length === 0) return;
+    if (isSyncing) return; // Evita duplicidade
 
     setIsSyncing(true);
     const queueCopy = [...pendingQueue];
     const failedItems: PendingOcorrencia[] = [];
     let successCount = 0;
-    let authError = false;
-
+    
     console.log(`Iniciando sincronização de ${queueCopy.length} itens...`);
 
     for (const item of queueCopy) {
-      // Se detectou erro de auth, não tenta os próximos para evitar spam/bloqueio
-      if (authError) {
-        failedItems.push(item);
-        continue;
-      }
-
       try {
-        // Tenta enviar para a API
+        // A payload agora é o objeto puro da ocorrência (
         await api.post('/api/v3/ocorrencias', item.payload);
         successCount++;
         console.log(`Item ${item.id_temp} sincronizado.`);
@@ -110,31 +105,30 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const err = error as AxiosError;
         console.error(`Erro ao sincronizar item ${item.id_temp}:`, err.message);
         
-        // Verificação de Erro 401 (Token Expirado/Inválido)
-        if (err.response && err.response.status === 401) {
-            authError = true;
-            Alert.alert(
-                'Sessão Expirada', 
-                'Não foi possível sincronizar pois sua sessão expirou. Por favor, faça login novamente para não perder os dados.'
-            );
-        }
+        // Se for erro de validação (400) ou Auth (401), talvez devamos descartar ou alertar
+        // Se for erro de servidor (500) ou rede, mantemos na fila
+        const status = err.response?.status;
         
+        if (status === 401) {
+             Alert.alert('Sessão Expirada', 'Faça login novamente para sincronizar os dados.');
+             setIsSyncing(false);
+             return; // Para tudo se a autenticação falhar
+        }
+
         // Mantém na fila para tentar depois
         failedItems.push(item); 
       }
     }
 
-    // Atualiza a fila apenas com os que falharam (ou não foram tentados)
     await persistQueue(failedItems);
     setIsSyncing(false);
 
     if (successCount > 0) {
-      Alert.alert('Sincronização', `${successCount} ocorrências foram enviadas com sucesso!`);
-    }
-    
-    if (failedItems.length > 0 && !authError) {
-      // Se sobrou item e NÃO foi erro de auth (erro 500 ou oscilação de net)
-      Alert.alert('Atenção', `${failedItems.length} itens não puderam ser enviados. Tente novamente mais tarde.`);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`${successCount} ocorrências sincronizadas!`, ToastAndroid.LONG);
+      } else {
+        Alert.alert('Sincronização', `${successCount} ocorrências enviadas.`);
+      }
     }
   };
 

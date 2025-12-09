@@ -19,6 +19,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations';
 import { SelectionModal } from '../components/SelectionModal';
 import { StatusModal, StatusModalType } from '../components/StatusModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Schema de validação
 const ocorrenciaSchema = z.object({
@@ -172,26 +173,58 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     loadFormas();
   }, []);
 
-  const loadNaturezas = async () => {
+  // --- FUNÇÕES DE CARREGAMENTO COM CACHE (OFFLINE) ---
+
+  const loadDataWithCache = async (
+    key: string, 
+    apiCall: () => Promise<any>, 
+    setState: (data: Option[]) => void, 
+    mapFn: (item: any) => Option
+  ) => {
     try {
-      const response = await api.get('/api/v3/naturezas');
-      setNaturezas(response.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao })));
-    } catch (e) { console.error("Erro naturezas", e); }
+      // 1. Tenta buscar da API (Online)
+      const response = await apiCall();
+      const mappedData = response.data.map(mapFn);
+      
+      setState(mappedData);
+      
+      // 2. Salva no cache para uso futuro
+      await AsyncStorage.setItem(key, JSON.stringify(mappedData));
+      
+    } catch (error) {
+      console.log(`[Offline] Carregando ${key} do cache...`);
+      
+      // 3. Se deu erro (Offline), tenta ler do cache
+      const cached = await AsyncStorage.getItem(key);
+      if (cached) {
+        setState(JSON.parse(cached));
+      } else {
+        // Se não tem cache nem internet, mostra erro (opcional)
+        // showStatus('WARNING', 'Sem Dados', `Não foi possível carregar ${key} offline.`);
+      }
+    }
   };
 
-  const loadBairros = async () => {
-    try {
-      const response = await api.get('/api/v3/bairros');
-      setBairros(response.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro })));
-    } catch (e) { console.error("Erro bairros", e); }
-  };
+  const loadNaturezas = () => loadDataWithCache(
+    '@SORO:cache_naturezas',
+    () => api.get('/api/v3/naturezas'),
+    setNaturezas,
+    (n: any) => ({ id: n.id_natureza, label: n.descricao })
+  );
 
-  const loadFormas = async () => {
-    try {
-      const response = await api.get('/api/v3/formas-acervo');
-      setFormas(response.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao })));
-    } catch (e) { console.error("Erro formas", e); }
-  };
+  const loadBairros = () => loadDataWithCache(
+    '@SORO:cache_bairros',
+    () => api.get('/api/v3/bairros'),
+    setBairros,
+    (b: any) => ({ id: b.id_bairro, label: b.nome_bairro })
+  );
+
+  const loadFormas = () => loadDataWithCache(
+    '@SORO:cache_formas',
+    () => api.get('/api/v3/formas-acervo'),
+    setFormas,
+    (f: any) => ({ id: f.id_forma_acervo, label: f.descricao })
+  );
 
   const handleSelectNatureza = async (item: Option) => {
     setValue('naturezaId', item.id);
@@ -200,13 +233,16 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setValue('subgrupoId', '');
     
     setLoadingList(true);
-    try {
-      const response = await api.get('/api/v3/grupos', { params: { naturezaId: item.id } });
-      setGrupos(response.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo })));
-    } catch (e) { 
-      console.error(e); 
-      showStatus('ERROR', 'Erro', 'Falha ao carregar grupos.');
-    } finally { setLoadingList(false); }
+    
+    // Cache específico para esta natureza
+    const cacheKey = `@SORO:cache_grupos_${item.id}`;
+    
+    await loadDataWithCache(
+      cacheKey,
+      () => api.get('/api/v3/grupos', { params: { naturezaId: item.id } }),
+      setGrupos,
+      (g: any) => ({ id: g.id_grupo, label: g.descricao_grupo })
+    ).finally(() => setLoadingList(false));
   };
 
   const handleSelectGrupo = async (item: Option) => {
@@ -215,13 +251,16 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     setValue('subgrupoId', '');
 
     setLoadingList(true);
-    try {
-      const response = await api.get('/api/v3/subgrupos', { params: { grupoId: item.id } });
-      setSubgrupos(response.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo })));
-    } catch (e) { 
-      console.error(e); 
-      showStatus('ERROR', 'Erro', 'Falha ao carregar subgrupos.');
-    } finally { setLoadingList(false); }
+
+    // Cache específico para este grupo
+    const cacheKey = `@SORO:cache_subgrupos_${item.id}`;
+
+    await loadDataWithCache(
+      cacheKey,
+      () => api.get('/api/v3/subgrupos', { params: { grupoId: item.id } }),
+      setSubgrupos,
+      (s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo })
+    ).finally(() => setLoadingList(false));
   };
 
   const handleGetLocation = async () => {
@@ -315,11 +354,12 @@ export const NovaOcorrenciaScreen: React.FC = () => {
          }
        });
     } else {
-        await addToQueue({ type: 'CREATE_OCORRENCIA', payload });
+        await addToQueue(payload); 
+
         showStatus('WARNING', 'Modo Offline', 'Salvo na fila de sincronização.', () => {
-            setStatusModal(prev => ({...prev, visible: false}));
-            navigation.navigate('MinhasOcorrencias');
-        });
+        setStatusModal(prev => ({...prev, visible: false}));
+        navigation.navigate('MinhasOcorrencias');
+    });
     }
   };
 
