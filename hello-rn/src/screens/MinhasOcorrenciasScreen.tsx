@@ -92,7 +92,7 @@ export const MinhasOcorrencias = () => {
   const renderItem = ({ item }: { item: OcorrenciaAPI }) => (
     <Card 
       style={tw`bg-white border-l-4 border-l-[${COLORS.danger}] border-gray-100 shadow-sm p-4 mb-3 rounded-l-none`}
-      onPress={() => navigation.navigate('DetalhePendente', { id: item.id_ocorrencia })}
+      onPress={() => navigation.navigate('DetalhePendente', { ocorrencia: item })}
     >
       <View style={tw`flex-row justify-between mb-1`}>
         <Text style={tw`text-xs font-bold text-[${COLORS.textLight}]`}>

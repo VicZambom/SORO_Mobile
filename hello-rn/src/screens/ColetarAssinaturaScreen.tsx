@@ -1,13 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native'; 
 import SignatureScreen, { SignatureViewRef } from 'react-native-signature-canvas';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context'; 
 import { ArrowLeft } from 'lucide-react-native';
 import tw from 'twrnc';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Importante!
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { RootStackParamList } from '../types/navigation';
 import { COLORS } from '../constants/theme';
+import { StatusModal, StatusModalType } from '../components/StatusModal'; // Mantendo a melhoria visual
 
 type ColetarAssinaturaRouteProp = RouteProp<RootStackParamList, 'ColetarAssinatura'>;
 
@@ -20,6 +22,25 @@ export const ColetarAssinaturaScreen = () => {
   const [nomeSignatario, setNomeSignatario] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Estado do Modal Bonito
+  const [modal, setModal] = useState({
+    visible: false,
+    type: 'INFO' as StatusModalType,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showModal = (type: StatusModalType, title: string, message: string, onConfirm?: () => void) => {
+    setModal({
+      visible: true,
+      type,
+      title,
+      message,
+      onConfirm: onConfirm || (() => setModal(prev => ({ ...prev, visible: false }))),
+    });
+  };
+
   const style = `.m-signature-pad { box-shadow: none; border: none; } 
                  .m-signature-pad--body { border: none; }
                  .m-signature-pad--footer { display: none; margin: 0px; }
@@ -31,7 +52,7 @@ export const ColetarAssinaturaScreen = () => {
 
   const handleConfirm = () => {
     if (!nomeSignatario.trim()) {
-      Alert.alert('Atenção', 'Por favor, digite o nome do signatário.');
+      showModal('WARNING', 'Campo Obrigatório', 'Por favor, digite o nome do signatário antes de assinar.');
       return;
     }
     ref.current?.readSignature();
@@ -40,28 +61,27 @@ export const ColetarAssinaturaScreen = () => {
   const handleSignatureOK = async (signatureBase64: string) => {
     setLoading(true);
     try {
-      // --- MODO SIMULAÇÃO / OFFLINE ---
       console.log('Salvando assinatura localmente (Bypass de Rede)...');
 
       const key = `@SORO:assinatura_${ocorrenciaId}`;
       
-      // Salva a string Base64 direto no armazenamento do navegador/celular
       await AsyncStorage.setItem(key, JSON.stringify({
-        uri: signatureBase64, // A própria string base64 serve como URI para imagem
+        uri: signatureBase64,
         nome: nomeSignatario,
         data: new Date().toISOString()
       }));
 
-      // Simula um delay de rede para parecer real
+      // Simula delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      Alert.alert('Sucesso', `Assinatura de ${nomeSignatario} registrada!`, [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      showModal('SUCCESS', 'Assinatura Registrada!', `A assinatura de ${nomeSignatario} foi salva com sucesso.`, () => {
+         setModal(prev => ({ ...prev, visible: false }));
+         navigation.goBack();
+      });
 
     } catch (error: any) {
       console.error('Erro ao salvar localmente:', error);
-      Alert.alert('Erro', 'Falha ao salvar a assinatura no dispositivo.');
+      showModal('ERROR', 'Erro ao Salvar', 'Não foi possível registrar a assinatura no dispositivo.');
     } finally {
       setLoading(false);
     }
@@ -124,6 +144,16 @@ export const ColetarAssinaturaScreen = () => {
           )}
         </TouchableOpacity>
       </View>
+
+      <StatusModal 
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        onClose={() => setModal(prev => ({ ...prev, visible: false }))}
+        onConfirm={modal.onConfirm}
+        confirmText={modal.type === 'ERROR' ? 'TENTAR NOVAMENTE' : 'OK'}
+      />
     </SafeAreaView>
   );
 };

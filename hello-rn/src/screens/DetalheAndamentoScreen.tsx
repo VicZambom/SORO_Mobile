@@ -6,15 +6,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, MapPin, Clock, Camera, MoreVertical, User, CheckCircle, FileSignature } from 'lucide-react-native';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
-import MapView, { PROVIDER_DEFAULT } from 'react-native-maps'; // Import do Mapa
+import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Para assinatura offline
 
 import api from '../services/api';
 import { AppNavigationProp, RootStackParamList } from '../types/navigation';
 import { ActionModal } from '../components/ActionModal';
+import { StatusModal, StatusModalType } from '../components/StatusModal'; // NOVO IMPORT
 import { COLORS } from '../constants/theme';
 import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
-import { getVitimasLocais } from '../utils/vitimaStorage'; 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getVitimasLocais } from '../utils/vitimaStorage';
 
 // --- TIPAGEM ---
 interface Midia {
@@ -41,7 +42,6 @@ interface OcorrenciaFull {
   };
   forma_acervo: { descricao: string };
   
-  // Tipagem corrigida para incluir coordenadas
   localizacao?: {
     logradouro: string;
     referencia_logradouro: string;
@@ -65,39 +65,44 @@ interface OcorrenciaFull {
 
 const Tab = createMaterialTopTabNavigator();
 
-// --- ABA GERAL (Com Assinatura) ---
+// --- ABA GERAL (Com Assinatura Offline/Online) ---
 const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
-  // Procura assinatura (seja url normal ou base64 local)
+  // Procura assinatura (seja url normal ou base64 local marcada como 'local_sig')
   const assinatura = ocorrencia.midias.find(m => 
     m.url_caminho.toLowerCase().includes('assinatura') || m.id_midia === 'local_sig'
   );
 
   return (
     <ScrollView style={tw`flex-1 bg-white p-5`}>
-      {/* ... (Bloco de Informações da Ocorrência - MANTENHA IGUAL) ... */}
       <View style={tw`bg-white rounded-xl p-5 shadow-sm mb-5 border border-gray-100`}>
         <Text style={[tw`text-lg font-bold mb-4`, { color: COLORS.text }]}>Informações da Ocorrência</Text>
-        {/* ... Seus campos de texto aqui ... */}
-             <View style={tw`flex-row flex-wrap`}>
-                <View style={tw`w-1/2 mb-4 pr-2`}>
-                    <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Natureza</Text>
-                    <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-                    {ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}
-                    </Text>
-                </View>
-                <View style={tw`w-1/2 mb-4 pl-2`}>
-                    <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Nº Aviso</Text>
-                    <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-                    {ocorrencia.nr_aviso || 'S/N'}
-                    </Text>
-                </View>
-                <View style={tw`w-full mb-4`}>
-                    <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Subgrupo</Text>
-                    <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-                    {ocorrencia.subgrupo.descricao_subgrupo}
-                    </Text>
-                </View>
-            </View>
+        
+        <View style={tw`flex-row flex-wrap`}>
+          <View style={tw`w-1/2 mb-4 pr-2`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Natureza</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}
+            </Text>
+          </View>
+          <View style={tw`w-1/2 mb-4 pl-2`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Nº Aviso</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.nr_aviso || 'S/N'}
+            </Text>
+          </View>
+          <View style={tw`w-full mb-4`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Subgrupo</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.subgrupo.descricao_subgrupo}
+            </Text>
+          </View>
+           <View style={tw`w-full`}>
+            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Forma de Acionamento</Text>
+            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+              {ocorrencia.forma_acervo.descricao}
+            </Text>
+          </View>
+        </View>
       </View>
       
       {/* Bloco de Assinatura */}
@@ -220,37 +225,56 @@ export const DetalheAndamentoScreen = () => {
 
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFull | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isActionModalVisible, setIsActionModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // --- NOVO ESTADO DO MODAL DE FEEDBACK ---
+  const [statusModal, setStatusModal] = useState({
+    visible: false,
+    type: 'INFO' as StatusModalType,
+    title: '',
+    message: '',
+    confirmText: 'OK',
+    cancelText: undefined as string | undefined, // Se indefinido, não mostra botão cancelar
+    onConfirm: () => {},
+  });
 
   const updateMutation = useUpdateStatusOcorrencia();
   const isFinalizing = updateMutation.isPending;
 
-  // Busca dados da API e mescla com Local
+  // Função helper para abrir o modal de status
+  const showStatus = (type: StatusModalType, title: string, msg: string, onConfirm?: () => void, cancelText?: string, confirmText: string = 'OK') => {
+    setStatusModal({
+      visible: true,
+      type,
+      title,
+      message: msg,
+      confirmText,
+      cancelText,
+      onConfirm: onConfirm || (() => setStatusModal(prev => ({ ...prev, visible: false }))),
+    });
+  };
+
   const fetchDetalhes = async () => {
     try {
-      // 1. Busca API
       const response = await api.get(`/api/v3/ocorrencias/${id}`);
       const dadosApi = response.data;
       
-      // 2. Busca Vítimas Locais
       const vitimasLocais = await getVitimasLocais(id);
       
-      // 3. Busca Assinatura Local 
+      // Lógica Assinatura Offline
       const assinaturaLocalJson = await AsyncStorage.getItem(`@SORO:assinatura_${id}`);
       let midiasAtualizadas = [...(dadosApi.midias || [])];
 
       if (assinaturaLocalJson) {
         const localSig = JSON.parse(assinaturaLocalJson);
-        // Injeta a assinatura local na lista de mídias como se viesse da API
         midiasAtualizadas.push({
             id_midia: 'local_sig',
-            url_caminho: localSig.uri, // Base64 funciona como URI em <Image>
+            url_caminho: localSig.uri,
             tipo_arquivo: 'image/png'
         });
       }
 
-      // 4. Mescla tudo
       const listaCompletaVitimas = [
         ...(dadosApi.vitimas || []), 
         ...vitimasLocais
@@ -259,11 +283,11 @@ export const DetalheAndamentoScreen = () => {
       setOcorrencia({
         ...dadosApi,
         vitimas: listaCompletaVitimas,
-        midias: midiasAtualizadas // Usa a lista com a assinatura local
+        midias: midiasAtualizadas
       });
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha ao carregar detalhes.');
+      showStatus('ERROR', 'Erro', 'Falha ao carregar detalhes da ocorrência.');
     } finally {
       setLoading(false);
     }
@@ -278,14 +302,14 @@ export const DetalheAndamentoScreen = () => {
   const handleAction = async (action: 'FOTO' | 'VIDEO' | 'ASSINATURA' | 'VITIMA') => {
     if (!ocorrencia) return;
     if (action === 'FOTO') handleCameraUpload();
-    else if (action === 'VIDEO') Alert.alert("Em breve", "Gravação de vídeo será implementada.");
+    else if (action === 'VIDEO') showStatus('INFO', 'Em Breve', "Gravação de vídeo será implementada.");
     else if (action === 'ASSINATURA') navigation.navigate('ColetarAssinatura', { ocorrenciaId: ocorrencia.id_ocorrencia });
     else if (action === 'VITIMA') navigation.navigate('RegistrarVitima', { ocorrenciaId: ocorrencia.id_ocorrencia });
   };
 
   const handleCameraUpload = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') return Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera.');
+    if (status !== 'granted') return showStatus('WARNING', 'Permissão', 'Precisamos de acesso à câmera.');
     
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -313,40 +337,47 @@ export const DetalheAndamentoScreen = () => {
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
 
-      Alert.alert('Sucesso', 'Foto registrada!');
+      showStatus('SUCCESS', 'Sucesso', 'Foto registrada!');
       setOcorrencia(prev => prev ? { ...prev, midias: [...prev.midias, response.data.data] } : null);
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha ao enviar a foto.');
+      showStatus('ERROR', 'Erro', 'Falha ao enviar a foto.');
     } finally {
       setUploading(false);
     }
   };
 
+  // --- NOVA LÓGICA DE FINALIZAR COM MODAL ---
   const handleFinalizar = () => {
-      Alert.alert(
-          "Finalizar Ocorrência",
-          "Deseja encerrar este atendimento? A ocorrência será marcada como concluída.",
-          [
-            { text: "Cancelar", style: "cancel" }, 
-            { 
-              text: "Confirmar e Finalizar", 
-              onPress: () => {
-                if (!ocorrencia) return;
-                
-                updateMutation.mutate({
-                    id: ocorrencia.id_ocorrencia,
-                    status_situacao: 'CONCLUIDO',
-                    nr_aviso: ocorrencia.nr_aviso
-                }, {
-                    onSuccess: () => {
-                        Alert.alert("Sucesso", "Ocorrência finalizada!");
+      // 1. Abre modal de confirmação (WARNING/Amarelo)
+      showStatus(
+        'WARNING', 
+        "Finalizar Ocorrência?", 
+        "Deseja encerrar este atendimento? A ocorrência será marcada como concluída.", 
+        () => {
+             // 2. Se confirmado, executa a mutação
+             setStatusModal(prev => ({ ...prev, visible: false })); // Fecha o de confirmação
+             if (!ocorrencia) return;
+
+             updateMutation.mutate({
+                id: ocorrencia.id_ocorrencia,
+                status_situacao: 'CONCLUIDO',
+                nr_aviso: ocorrencia.nr_aviso
+            }, {
+                onSuccess: () => {
+                    // 3. Sucesso (SUCCESS/Verde)
+                    showStatus('SUCCESS', "Ocorrência Finalizada!", "Bom trabalho. O registro foi encerrado.", () => {
+                        setStatusModal(prev => ({ ...prev, visible: false }));
                         navigation.navigate('MinhasOcorrencias');
-                    }
-                });
-              } 
-            }
-          ]
+                    });
+                },
+                onError: () => {
+                    showStatus('ERROR', "Erro", "Não foi possível finalizar. Tente novamente.");
+                }
+            });
+        },
+        "Cancelar", // Texto do botão cancelar
+        "Confirmar" // Texto do botão confirmar
       );
   }
 
@@ -369,10 +400,23 @@ export const DetalheAndamentoScreen = () => {
         </View>
       )}
 
+       {/* MODAL DE AÇÕES (Foto/Assinatura) */}
        <ActionModal 
-         visible={isModalVisible} 
-         onClose={() => setIsModalVisible(false)}
+         visible={isActionModalVisible} 
+         onClose={() => setIsActionModalVisible(false)}
          onAction={handleAction}
+       />
+
+       {/* NOVO MODAL DE STATUS (Feedback/Confirmação) */}
+       <StatusModal 
+         visible={statusModal.visible}
+         type={statusModal.type}
+         title={statusModal.title}
+         message={statusModal.message}
+         confirmText={statusModal.confirmText}
+         cancelText={statusModal.cancelText}
+         onClose={() => setStatusModal(prev => ({ ...prev, visible: false }))}
+         onConfirm={statusModal.onConfirm}
        />
 
       <View style={tw`px-5 pb-4 pt-2 bg-[#FFF7ED]`}>
@@ -405,7 +449,6 @@ export const DetalheAndamentoScreen = () => {
                 </Text>
             </View>
 
-            {/* MINI MAPA AQUI */}
             <View style={tw`w-20 h-20 bg-blue-100 rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
                  {ocorrencia.localizacao?.latitude && ocorrencia.localizacao?.longitude ? (
                    <MapView
@@ -445,7 +488,7 @@ export const DetalheAndamentoScreen = () => {
                 {() => <GeralTab ocorrencia={ocorrencia} />}
             </Tab.Screen>
             <Tab.Screen name="Mídia" options={{ title: `Mídia (${ocorrencia.midias.length})` }}>
-                {() => <MidiaTab ocorrencia={ocorrencia} onAddPress={() => setIsModalVisible(true)} />}
+                {() => <MidiaTab ocorrencia={ocorrencia} onAddPress={() => setIsActionModalVisible(true)} />}
             </Tab.Screen>
             <Tab.Screen name="Vítimas" options={{ title: `Vítimas (${ocorrencia.vitimas.length})` }}>
                 {() => <VitimasTab ocorrencia={ocorrencia} />}
@@ -457,7 +500,7 @@ export const DetalheAndamentoScreen = () => {
           <View style={tw`items-end mb-4`}>
               <TouchableOpacity 
                 style={[tw`w-14 h-14 rounded-full items-center justify-center shadow-xl`, { backgroundColor: COLORS.primary }]}
-                onPress={() => setIsModalVisible(true)}
+                onPress={() => setIsActionModalVisible(true)}
               >
                 <MoreVertical size={24} color="white" />
               </TouchableOpacity>

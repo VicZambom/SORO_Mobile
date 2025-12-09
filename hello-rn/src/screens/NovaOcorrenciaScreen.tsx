@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, Text, View, TouchableOpacity, KeyboardAvoidingView, 
-  Platform, Modal, FlatList, ActivityIndicator, Alert, TextInput 
+  Platform, ActivityIndicator, Alert, TextInput 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronDown, X, Check, MapPin, WifiOff } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, Check, MapPin, WifiOff } from 'lucide-react-native';
 import tw from 'twrnc';
 import * as Location from 'expo-location';
 
@@ -17,10 +17,10 @@ import api from '../services/api';
 import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
 import { COLORS } from '../constants/theme';
-import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations'; 
+import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations';
 import { SelectionModal } from '../components/SelectionModal';
+import { StatusModal, StatusModalType } from '../components/StatusModal'; // NOVO IMPORT
 
-// --- SCHEMA DE VALIDAÇÃO ---
 const ocorrenciaSchema = z.object({
   naturezaId: z.string().min(1, "Selecione uma natureza"),
   grupoId: z.string().min(1, "Selecione um grupo"),
@@ -38,8 +38,6 @@ interface Option {
   id: string;
   label: string;
 }
-
-// --- COMPONENTES INTERNOS ---
 
 const SelectInput = ({ label, value, placeholder, onPress, disabled = false, error }: any) => (
   <View style={tw`mb-4`}>
@@ -105,8 +103,6 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
   );
 };
 
-// --- TELA PRINCIPAL ---
-
 export const NovaOcorrenciaScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigationProp>();
   const { isOnline, addToQueue } = useSync();
@@ -115,6 +111,25 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   // Hook de Mutação 
   const createMutation = useCreateOcorrencia();
   const isSubmitting = createMutation.isPending;
+
+  // --- ESTADO DO STATUS MODAL ---
+  const [statusModal, setStatusModal] = useState({
+    visible: false,
+    type: 'INFO' as StatusModalType,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showStatus = (type: StatusModalType, title: string, msg: string, onConfirm?: () => void) => {
+    setStatusModal({
+      visible: true,
+      type,
+      title,
+      message: msg,
+      onConfirm: onConfirm || (() => setStatusModal(prev => ({ ...prev, visible: false }))),
+    });
+  };
 
   const { control, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<OcorrenciaFormData>({
     resolver: zodResolver(ocorrenciaSchema),
@@ -138,81 +153,55 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   const [loadingLoc, setLoadingLoc] = useState(false);
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        if (isOnline) {
-          const [resNat, resBai, resFor] = await Promise.all([
-            api.get('/api/v3/naturezas'),
-            api.get('/api/v3/bairros'),
-            api.get('/api/v3/formas-acervo')
-          ]);
-          const naturezasData = resNat.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao }));
-          const bairrosData = resBai.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro }));
-          const formasData = resFor.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao }));
+    loadNaturezas();
+    loadBairros();
+    loadFormas();
+  }, []);
 
-          setNaturezas(naturezasData);
-          setBairros(bairrosData);
-          setFormas(formasData);
+  const loadNaturezas = async () => {
+    try {
+      const response = await api.get('/api/v3/naturezas');
+      setNaturezas(response.data.map((n: any) => ({ id: n.id_natureza, label: n.descricao })));
+    } catch (e) { console.error("Erro ao carregar naturezas", e); }
+  };
 
-          await AsyncStorage.setItem('@SORO:cache_naturezas', JSON.stringify(naturezasData));
-          await AsyncStorage.setItem('@SORO:cache_bairros', JSON.stringify(bairrosData));
-          await AsyncStorage.setItem('@SORO:cache_formas', JSON.stringify(formasData));
-        } else {
-          const cachedNat = await AsyncStorage.getItem('@SORO:cache_naturezas');
-          const cachedBai = await AsyncStorage.getItem('@SORO:cache_bairros');
-          const cachedFor = await AsyncStorage.getItem('@SORO:cache_formas');
-          if (cachedNat) setNaturezas(JSON.parse(cachedNat));
-          if (cachedBai) setBairros(JSON.parse(cachedBai));
-          if (cachedFor) setFormas(JSON.parse(cachedFor));
-        }
-      } catch (error) {
-        console.log('Erro ao carregar listas:', error);
-      }
-    };
-    loadInitialData();
-  }, [isOnline]);
+  const loadBairros = async () => {
+    try {
+      const response = await api.get('/api/v3/bairros');
+      setBairros(response.data.map((b: any) => ({ id: b.id_bairro, label: b.nome_bairro })));
+    } catch (e) { console.error("Erro bairros", e); }
+  };
+
+  const loadFormas = async () => {
+    try {
+      const response = await api.get('/api/v3/formas-acervo');
+      setFormas(response.data.map((f: any) => ({ id: f.id_forma_acervo, label: f.descricao })));
+    } catch (e) { console.error("Erro formas", e); }
+  };
 
   const handleSelectNatureza = async (item: Option) => {
     setValue('naturezaId', item.id);
-    setValue('grupoId', ''); 
-    setValue('subgrupoId', ''); 
     setLabels(prev => ({ ...prev, natureza: item.label, grupo: '', subgrupo: '' }));
+    setValue('grupoId', '');
+    setValue('subgrupoId', '');
     
     setLoadingList(true);
-    const cacheKey = `@SORO:cache_grupos_${item.id}`; 
     try {
-       if (isOnline) {
-          const res = await api.get('/api/v3/grupos', { params: { naturezaId: item.id } });
-          const mapped = res.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo }));
-          setGrupos(mapped);
-          await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped));
-       } else {
-          const cached = await AsyncStorage.getItem(cacheKey);
-          if (cached) setGrupos(JSON.parse(cached));
-       }
-    } catch (err) { console.log(err); }
-    setLoadingList(false);
+      const response = await api.get(`/api/v3/grupos/natureza/${item.id}`);
+      setGrupos(response.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo })));
+    } catch (e) { console.error(e); } finally { setLoadingList(false); }
   };
 
   const handleSelectGrupo = async (item: Option) => {
     setValue('grupoId', item.id);
-    setValue('subgrupoId', '');
     setLabels(prev => ({ ...prev, grupo: item.label, subgrupo: '' }));
+    setValue('subgrupoId', '');
 
     setLoadingList(true);
-    const cacheKey = `@SORO:cache_subgrupos_${item.id}`;
     try {
-       if (isOnline) {
-          const res = await api.get('/api/v3/subgrupos', { params: { grupoId: item.id } });
-          const mapped = res.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo }));
-          setSubgrupos(mapped);
-          await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped));
-       } else {
-          const cached = await AsyncStorage.getItem(cacheKey);
-          if (cached) setSubgrupos(JSON.parse(cached));
-       }
-    } catch (err) { console.log(err); }
-    setLoadingList(false);
+      const response = await api.get(`/api/v3/subgrupos/grupo/${item.id}`);
+      setSubgrupos(response.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo })));
+    } catch (e) { console.error(e); } finally { setLoadingList(false); }
   };
 
   const handleGetLocation = async () => {
@@ -220,106 +209,73 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'Precisamos de acesso à localização.');
+        showStatus('ERROR', 'Permissão Negada', 'Permissão de localização é necessária para pegar o GPS.');
         return;
       }
 
-      // 1. Obtém Coordenadas
-      let currentLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setLocation(currentLocation);
+      let loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+      
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude
+      });
 
-      // 2. Geocodificação Reversa (Lat/Long -> Endereço)
-      if (currentLocation) {
-        try {
-          const reverseGeocode = await Location.reverseGeocodeAsync({
-            latitude: currentLocation.coords.latitude,
-            longitude: currentLocation.coords.longitude
-          });
-
-          if (reverseGeocode.length > 0) {
-            const address = reverseGeocode[0];
-            console.log("Endereço encontrado:", address);
-
-            // A. Preenche Logradouro (Rua)
-            if (address.street) {
-              setValue('logradouro', address.street);
-            }
-
-            // B. Tenta Preencher o Bairro Automaticamente
-            // O campo 'district' ou 'subregion' costuma trazer o bairro no Expo Location
-            const bairroGPS = address.district || address.subregion;
-
-            if (bairroGPS) {
-              // Função auxiliar para normalizar texto (tira acentos e caixa alta)
-              const normalize = (str: string) => 
-                str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-              const termoGPS = normalize(bairroGPS);
-
-              // Procura na lista de bairros
-              const bairroMatch = bairros.find(b => normalize(b.label) === termoGPS);
-
-              if (bairroMatch) {
-                // Se achou, seleciona o ID e atualiza o Label visual
-                setValue('bairroId', bairroMatch.id);
-                setLabels(prev => ({ ...prev, bairro: bairroMatch.label }));
-              }
-            }
-          }
-        } catch (geoError) { 
-          console.log("Erro reverse geo", geoError); 
-        }
+      if (address) {
+        const fullAddress = `${address.street || ''}, ${address.subregion || ''}`;
+        setValue('logradouro', fullAddress);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Verifique o GPS.');
+      showStatus('ERROR', 'Erro no GPS', 'Não foi possível obter a localização atual.');
     } finally {
       setLoadingLoc(false);
     }
   };
 
-  // Auto-disparo do GPS na Fase 2
-  useEffect(() => {
-    if (step === 2 && !location) {
-      handleGetLocation();
-    }
-  }, [step]);
-
   const handleNextStep = async () => {
     let isValid = false;
     if (step === 1) isValid = await trigger(['naturezaId', 'grupoId', 'subgrupoId']);
-    if (step === 2) isValid = await trigger(['bairroId', 'logradouro']); // Validação rigorosa aqui
+    if (step === 2) isValid = await trigger(['bairroId', 'logradouro']);
+    
     if (isValid) setStep(prev => prev + 1);
   };
 
   const onSubmit = async (data: OcorrenciaFormData) => {
-    const now = new Date(); 
     const payload = {
-      data_acionamento: now.toISOString(),
-      hora_acionamento: now.toISOString(),
-      id_subgrupo_fk: data.subgrupoId,
-      id_bairro_fk: data.bairroId,
-      id_forma_acervo_fk: data.formaAcervoId,
-      nr_aviso: data.nrAviso || undefined,
-      observacoes: data.observacoes, 
-      localizacao: {
-          logradouro: data.logradouro,
-          latitude: location?.coords.latitude || null, 
-          longitude: location?.coords.longitude || null
-      }
+        nr_aviso: data.nrAviso,
+        data_acionamento: new Date().toISOString().split('T')[0],
+        hora_acionamento: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        id_subgrupo_fk: data.subgrupoId,
+        id_bairro_fk: data.bairroId,
+        id_forma_acervo_fk: data.formaAcervoId,
+        localizacao: {
+            logradouro: data.logradouro,
+            referencia_logradouro: '', 
+            latitude: location?.coords.latitude,
+            longitude: location?.coords.longitude
+        },
+        observacoes: data.observacoes
     };
 
     if (isOnline) {
-      // Usa a Mutação do React Query 
-      createMutation.mutate(payload, {
-        onSuccess: () => {
-           Alert.alert("Sucesso!", "Ocorrência enviada.", [
-              { text: "OK", onPress: () => navigation.navigate('MinhasOcorrencias') }
-           ]);
-        }
-      });
+       createMutation.mutate(payload, {
+         onSuccess: () => {
+            showStatus('SUCCESS', 'Ocorrência Criada', 'O registro foi enviado com sucesso!', () => {
+                setStatusModal(prev => ({...prev, visible: false}));
+                navigation.navigate('MinhasOcorrencias');
+            });
+         },
+         onError: (error) => {
+            showStatus('ERROR', 'Erro ao Criar', 'Falha ao enviar dados para o servidor.');
+            console.error(error);
+         }
+       });
     } else {
-      await addToQueue(payload);
-      navigation.navigate('MinhasOcorrencias');
+        await addToQueue({ type: 'CREATE_OCORRENCIA', payload });
+        showStatus('WARNING', 'Modo Offline', 'Ocorrência salva na fila e será enviada quando houver conexão.', () => {
+            setStatusModal(prev => ({...prev, visible: false}));
+            navigation.navigate('MinhasOcorrencias');
+        });
     }
   };
 
@@ -344,67 +300,86 @@ export const NovaOcorrenciaScreen: React.FC = () => {
       case 2:
         return (
           <>
-            <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Localização</Text>
-            <TouchableOpacity 
-              style={[tw`py-3 rounded-xl border flex-row items-center justify-center mb-4`, location ? tw`bg-green-50 border-green-200` : tw`bg-blue-50 border-blue-200`]}
-              onPress={handleGetLocation}
-              disabled={loadingLoc}
-            >
-               {loadingLoc ? <ActivityIndicator size="small" color={COLORS.secondary} /> : location ? 
-                  <><Check size={20} color={COLORS.success} style={tw`mr-2`} /><Text style={[tw`font-bold`, { color: COLORS.success }]}>GPS OK</Text></> : 
-                  <><MapPin size={20} color={COLORS.secondary} style={tw`mr-2`} /><Text style={[tw`font-bold`, { color: COLORS.secondary }]}>Usar GPS</Text></>
-               }
-            </TouchableOpacity>
+             <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Localização</Text>
+             
+             <View style={tw`mb-4`}>
+                <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Coordenadas GPS</Text>
+                <TouchableOpacity 
+                  style={tw`flex-row items-center justify-center bg-blue-50 border border-blue-100 rounded-xl p-4 h-14`}
+                  onPress={handleGetLocation}
+                  disabled={loadingLoc}
+                >
+                  {loadingLoc ? <ActivityIndicator color={COLORS.primary} /> : (
+                    <>
+                      <MapPin size={20} color={COLORS.primary} style={tw`mr-2`} />
+                      <Text style={[tw`font-bold`, { color: COLORS.primary }]}>
+                        {location ? 'Atualizar Localização' : 'Pegar Localização Atual'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+             </View>
 
-            <SelectInput label="Município (Fixo)" placeholder="Recife" value="Recife" onPress={() => {}} disabled />
-            <SelectInput label="Bairro" placeholder="Selecione..." value={labels.bairro} onPress={() => setModalType('bairro')} error={errors.bairroId?.message} />
-            
-            <View style={tw`mb-4`}>
-              <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Logradouro</Text>
-              <Controller
-                control={control}
-                name="logradouro"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View>
-                    <TextInput 
-                       style={[tw`bg-white border rounded-xl p-4 text-base h-14`, errors.logradouro ? tw`border-red-500` : tw`border-gray-300`, { color: COLORS.text }]}
-                       placeholder="Ex: Rua dos Navegantes"
-                       onBlur={onBlur}
-                       onChangeText={onChange}
-                       value={value}
-                    />
-                    {errors.logradouro && <Text style={tw`text-red-500 text-xs mt-1`}>{errors.logradouro.message}</Text>}
-                  </View>
-                )}
-              />
-            </View>
+             <View style={tw`mb-4`}>
+               <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Logradouro</Text>
+               <Controller
+                 control={control}
+                 name="logradouro"
+                 render={({ field: { onChange, value } }) => (
+                   <TextInput
+                     style={[tw`bg-white border rounded-xl p-4 text-base`, errors.logradouro ? tw`border-red-500` : tw`border-gray-300`, { color: COLORS.text }]}
+                     placeholder="Rua, Avenida, etc..."
+                     value={value}
+                     onChangeText={onChange}
+                   />
+                 )}
+               />
+               {errors.logradouro && <Text style={tw`text-red-500 text-xs mt-1`}>{errors.logradouro.message}</Text>}
+             </View>
+
+             <SelectInput label="Bairro" placeholder="Selecione..." value={labels.bairro} onPress={() => setModalType('bairro')} error={errors.bairroId?.message} />
           </>
         );
       case 3:
         return (
           <>
-            <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Detalhes</Text>
-            <SelectInput label="Forma de Acionamento" placeholder="Selecione..." value={labels.forma} onPress={() => setModalType('forma')} error={errors.formaAcervoId?.message} />
-            <View style={tw`mb-4`}>
-              <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Número do Aviso (Opcional)</Text>
-              <Controller
-                control={control}
-                name="nrAviso"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput style={[tw`bg-white border border-gray-300 rounded-xl p-4 text-base h-14`, { color: COLORS.text }]} placeholder="091" keyboardType="numeric" onChangeText={onChange} value={value} />
-                )}
-              />
-            </View>
-            <View style={tw`mb-4`}>
-              <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Observações</Text>
-              <Controller
-                control={control}
-                name="observacoes"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput style={[tw`bg-white border border-gray-300 rounded-xl p-4 text-base h-32`, { color: COLORS.text }]} placeholder="Detalhes adicionais..." multiline textAlignVertical="top" onChangeText={onChange} value={value} />
-                )}
-              />
-            </View>
+             <Text style={[tw`text-2xl font-bold mb-6`, { color: COLORS.text }]}>Detalhes</Text>
+             <SelectInput label="Forma de Acionamento" placeholder="Selecione..." value={labels.forma} onPress={() => setModalType('forma')} error={errors.formaAcervoId?.message} />
+             
+             <View style={tw`mb-4`}>
+               <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Nº do Aviso (Opcional)</Text>
+               <Controller
+                 control={control}
+                 name="nrAviso"
+                 render={({ field: { onChange, value } }) => (
+                   <TextInput
+                     style={[tw`bg-white border border-gray-300 rounded-xl p-4 text-base`, { color: COLORS.text }]}
+                     placeholder="Ex: 12345"
+                     keyboardType="numeric"
+                     value={value}
+                     onChangeText={onChange}
+                   />
+                 )}
+               />
+             </View>
+
+             <View style={tw`mb-4`}>
+               <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>Observações</Text>
+               <Controller
+                 control={control}
+                 name="observacoes"
+                 render={({ field: { onChange, value } }) => (
+                   <TextInput
+                     style={[tw`bg-white border border-gray-300 rounded-xl p-4 text-base h-32`, { color: COLORS.text }]}
+                     placeholder="Detalhes adicionais..."
+                     multiline
+                     textAlignVertical="top"
+                     value={value}
+                     onChangeText={onChange}
+                   />
+                 )}
+               />
+             </View>
           </>
         );
     }
@@ -412,6 +387,15 @@ export const NovaOcorrenciaScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[tw`flex-1`, { backgroundColor: COLORS.background }]}>
+      <StatusModal 
+         visible={statusModal.visible}
+         type={statusModal.type}
+         title={statusModal.title}
+         message={statusModal.message}
+         onClose={() => setStatusModal(prev => ({ ...prev, visible: false }))}
+         onConfirm={statusModal.onConfirm}
+       />
+
       <View style={tw`flex-row items-center px-5 py-4 border-b border-gray-100`}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={tw`p-2 -ml-2`}>
           <ArrowLeft color={COLORS.text} size={24} />
@@ -446,6 +430,8 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* --- SELECTION MODALS (Usando o componente unificado) --- */}
       
       <SelectionModal 
         visible={modalType === 'natureza'} 
