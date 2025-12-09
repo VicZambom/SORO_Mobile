@@ -18,6 +18,7 @@ import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
 import { COLORS } from '../constants/theme';
 import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations'; 
+import { SelectionModal } from '../components/SelectionModal';
 
 // --- SCHEMA DE VALIDAÇÃO ---
 const ocorrenciaSchema = z.object({
@@ -39,50 +40,6 @@ interface Option {
 }
 
 // --- COMPONENTES INTERNOS ---
-
-const SelectionModal = ({ 
-  visible, onClose, title, options, onSelect, loading 
-}: { 
-  visible: boolean; onClose: () => void; title: string; options: Option[]; onSelect: (item: Option) => void; loading?: boolean;
-}) => (
-  <Modal visible={visible} animationType="fade" transparent>
-    <View style={tw`flex-1 justify-end bg-black/60`}>
-      <View style={tw`bg-white rounded-t-3xl max-h-[60%]`}>
-        <View style={tw`flex-row justify-between items-center p-5 border-b border-gray-100`}>
-          <Text style={[tw`text-lg font-bold`, { color: COLORS.text }]}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={tw`p-1`}>
-            <X size={24} color={COLORS.textLight} />
-          </TouchableOpacity>
-        </View>
-        
-        {loading ? (
-          <View style={tw`p-10 items-center`}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={[tw`mt-4`, { color: COLORS.textLight }]}>Carregando opções...</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={options}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={tw`p-4`}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={tw`py-4 border-b border-gray-50 flex-row items-center`}
-                onPress={() => { onSelect(item); onClose(); }}
-              >
-                <View style={tw`w-2 h-2 rounded-full bg-slate-300 mr-3`} />
-                <Text style={[tw`text-base font-medium`, { color: COLORS.text }]}>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <Text style={[tw`text-center py-6`, { color: COLORS.textLight }]}>Nenhuma opção disponível.</Text>
-            }
-          />
-        )}
-      </View>
-    </View>
-  </Modal>
-);
 
 const SelectInput = ({ label, value, placeholder, onPress, disabled = false, error }: any) => (
   <View style={tw`mb-4`}>
@@ -477,7 +434,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
             { backgroundColor: step === 3 ? COLORS.success : COLORS.primary }
           ]}
           onPress={step < 3 ? handleNextStep : handleSubmit(onSubmit)}
-          disabled={isSubmitting} // Bloqueia se o React Query estiver enviando
+          disabled={isSubmitting}
         >
           {isSubmitting ? <ActivityIndicator color="white" /> : (
             <>
@@ -489,12 +446,49 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
+      
+      <SelectionModal 
+        visible={modalType === 'natureza'} 
+        title="Natureza" 
+        options={naturezas} 
+        onClose={() => setModalType(null)} 
+        onSelect={handleSelectNatureza} 
+      />
+      
+      <SelectionModal 
+        visible={modalType === 'grupo'} 
+        title="Grupo" 
+        options={grupos} 
+        loading={loadingList} 
+        onClose={() => setModalType(null)} 
+        onSelect={handleSelectGrupo} 
+      />
+      
+      <SelectionModal 
+        visible={modalType === 'subgrupo'} 
+        title="Subgrupo" 
+        options={subgrupos} 
+        loading={loadingList} 
+        onClose={() => setModalType(null)} 
+        onSelect={(i) => { setValue('subgrupoId', i.id); setLabels(prev => ({...prev, subgrupo: i.label})); }} 
+      />
+      
+      <SelectionModal 
+        visible={modalType === 'bairro'} 
+        title="Bairro" 
+        options={bairros} 
+        onClose={() => setModalType(null)} 
+        onSelect={(i) => { setValue('bairroId', i.id); setLabels(prev => ({...prev, bairro: i.label})); }} 
+      />
+      
+      <SelectionModal 
+        visible={modalType === 'forma'} 
+        title="Forma de Acionamento" 
+        options={formas} 
+        onClose={() => setModalType(null)} 
+        onSelect={(i) => { setValue('formaAcervoId', i.id); setLabels(prev => ({...prev, forma: i.label})); }} 
+      />
 
-      <SelectionModal visible={modalType === 'natureza'} title="Natureza" options={naturezas} onClose={() => setModalType(null)} onSelect={handleSelectNatureza} />
-      <SelectionModal visible={modalType === 'grupo'} title="Grupo" options={grupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={handleSelectGrupo} />
-      <SelectionModal visible={modalType === 'subgrupo'} title="Subgrupo" options={subgrupos} loading={loadingList} onClose={() => setModalType(null)} onSelect={(i) => { setValue('subgrupoId', i.id); setLabels(prev => ({...prev, subgrupo: i.label})); }} />
-      <SelectionModal visible={modalType === 'bairro'} title="Bairro" options={bairros} onClose={() => setModalType(null)} onSelect={(i) => { setValue('bairroId', i.id); setLabels(prev => ({...prev, bairro: i.label})); }} />
-      <SelectionModal visible={modalType === 'forma'} title="Forma de Acionamento" options={formas} onClose={() => setModalType(null)} onSelect={(i) => { setValue('formaAcervoId', i.id); setLabels(prev => ({...prev, forma: i.label})); }} />
     </SafeAreaView>
   );
 };
