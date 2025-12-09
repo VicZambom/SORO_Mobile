@@ -13,7 +13,8 @@ import { AppNavigationProp, RootStackParamList } from '../types/navigation';
 import { ActionModal } from '../components/ActionModal';
 import { COLORS } from '../constants/theme';
 import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
-import { getVitimasLocais } from '../utils/vitimaStorage'; // Import das vítimas locais
+import { getVitimasLocais } from '../utils/vitimaStorage'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- TIPAGEM ---
 interface Midia {
@@ -66,45 +67,37 @@ const Tab = createMaterialTopTabNavigator();
 
 // --- ABA GERAL (Com Assinatura) ---
 const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
-  // Procura assinatura nas mídias (baseado no nome do arquivo ou tipo)
+  // Procura assinatura (seja url normal ou base64 local)
   const assinatura = ocorrencia.midias.find(m => 
-    m.url_caminho.toLowerCase().includes('assinatura')
+    m.url_caminho.toLowerCase().includes('assinatura') || m.id_midia === 'local_sig'
   );
 
   return (
     <ScrollView style={tw`flex-1 bg-white p-5`}>
+      {/* ... (Bloco de Informações da Ocorrência - MANTENHA IGUAL) ... */}
       <View style={tw`bg-white rounded-xl p-5 shadow-sm mb-5 border border-gray-100`}>
         <Text style={[tw`text-lg font-bold mb-4`, { color: COLORS.text }]}>Informações da Ocorrência</Text>
-        
-        <View style={tw`flex-row flex-wrap`}>
-          <View style={tw`w-1/2 mb-4 pr-2`}>
-            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Natureza</Text>
-            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-              {ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}
-            </Text>
-          </View>
-          
-          <View style={tw`w-1/2 mb-4 pl-2`}>
-            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Nº Aviso</Text>
-            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-              {ocorrencia.nr_aviso || 'S/N'}
-            </Text>
-          </View>
-
-          <View style={tw`w-full mb-4`}>
-            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Subgrupo (Detalhe)</Text>
-            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-              {ocorrencia.subgrupo.descricao_subgrupo}
-            </Text>
-          </View>
-
-           <View style={tw`w-full`}>
-            <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Forma de Acionamento</Text>
-            <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
-              {ocorrencia.forma_acervo.descricao}
-            </Text>
-          </View>
-        </View>
+        {/* ... Seus campos de texto aqui ... */}
+             <View style={tw`flex-row flex-wrap`}>
+                <View style={tw`w-1/2 mb-4 pr-2`}>
+                    <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Natureza</Text>
+                    <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+                    {ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'}
+                    </Text>
+                </View>
+                <View style={tw`w-1/2 mb-4 pl-2`}>
+                    <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Nº Aviso</Text>
+                    <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+                    {ocorrencia.nr_aviso || 'S/N'}
+                    </Text>
+                </View>
+                <View style={tw`w-full mb-4`}>
+                    <Text style={[tw`text-xs uppercase font-bold`, { color: COLORS.textLight }]}>Subgrupo</Text>
+                    <Text style={[tw`text-sm font-medium mt-1`, { color: COLORS.text }]}>
+                    {ocorrencia.subgrupo.descricao_subgrupo}
+                    </Text>
+                </View>
+            </View>
       </View>
       
       {/* Bloco de Assinatura */}
@@ -126,7 +119,7 @@ const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
           <View style={tw`items-center py-6`}>
             <FileSignature size={32} color={COLORS.textLight} />
             <Text style={[tw`text-sm mt-2 text-center px-10`, { color: COLORS.textLight }]}>
-              Nenhuma assinatura registrada ainda. Use o menu de ações para coletar.
+              Nenhuma assinatura registrada ainda.
             </Text>
           </View>
         )}
@@ -236,11 +229,28 @@ export const DetalheAndamentoScreen = () => {
   // Busca dados da API e mescla com Local
   const fetchDetalhes = async () => {
     try {
+      // 1. Busca API
       const response = await api.get(`/api/v3/ocorrencias/${id}`);
       const dadosApi = response.data;
       
+      // 2. Busca Vítimas Locais
       const vitimasLocais = await getVitimasLocais(id);
       
+      // 3. Busca Assinatura Local 
+      const assinaturaLocalJson = await AsyncStorage.getItem(`@SORO:assinatura_${id}`);
+      let midiasAtualizadas = [...(dadosApi.midias || [])];
+
+      if (assinaturaLocalJson) {
+        const localSig = JSON.parse(assinaturaLocalJson);
+        // Injeta a assinatura local na lista de mídias como se viesse da API
+        midiasAtualizadas.push({
+            id_midia: 'local_sig',
+            url_caminho: localSig.uri, // Base64 funciona como URI em <Image>
+            tipo_arquivo: 'image/png'
+        });
+      }
+
+      // 4. Mescla tudo
       const listaCompletaVitimas = [
         ...(dadosApi.vitimas || []), 
         ...vitimasLocais
@@ -248,7 +258,8 @@ export const DetalheAndamentoScreen = () => {
 
       setOcorrencia({
         ...dadosApi,
-        vitimas: listaCompletaVitimas
+        vitimas: listaCompletaVitimas,
+        midias: midiasAtualizadas // Usa a lista com a assinatura local
       });
     } catch (error) {
       console.error(error);
