@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft } from 'lucide-react-native';
@@ -8,6 +8,8 @@ import tw from 'twrnc';
 import api from '../services/api';
 import { RootStackParamList } from '../types/navigation';
 import { saveVitimaLocal } from '../utils/vitimaStorage';
+import { useTheme } from '../context/ThemeContext';
+import { StatusModal, StatusModalType } from '../components/StatusModal';
 
 type RegistrarVitimaRouteProp = RouteProp<RootStackParamList, 'RegistrarVitima'>;
 
@@ -15,6 +17,7 @@ export const RegistrarVitimaScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<RegistrarVitimaRouteProp>();
   const { ocorrenciaId } = route.params;
+  const { colors } = useTheme();
 
   const [loading, setLoading] = useState(false);
 
@@ -28,9 +31,32 @@ export const RegistrarVitimaScreen = () => {
   // Estado da Classificação
   const [classificacao, setClassificacao] = useState<string | null>(null);
 
+  // Estado do Modal
+  const [statusModal, setStatusModal] = useState({
+    visible: false,
+    type: 'INFO' as StatusModalType,
+    title: '',
+    message: '',
+    confirmText: 'OK',
+    cancelText: undefined as string | undefined,
+    onConfirm: () => {},
+  });
+
+  const showStatus = (type: StatusModalType, title: string, msg: string, onConfirm?: () => void) => {
+    setStatusModal({
+      visible: true,
+      type,
+      title,
+      message: msg,
+      confirmText: 'OK',
+      cancelText: undefined,
+      onConfirm: onConfirm || (() => setStatusModal(prev => ({ ...prev, visible: false }))),
+    });
+  };
+
   const handleRegister = async () => {
     if (!classificacao) {
-      Alert.alert('Atenção', 'Por favor, selecione a classificação da vítima.');
+      showStatus('WARNING', 'Atenção', 'Por favor, selecione a classificação da vítima.');
       return;
     }
 
@@ -47,13 +73,14 @@ export const RegistrarVitimaScreen = () => {
 
       await saveVitimaLocal(ocorrenciaId, payload);
 
-      Alert.alert('Sucesso', 'Vítima registrada (Salvo no Dispositivo)', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      showStatus('SUCCESS', 'Sucesso', 'Vítima registrada com sucesso!', () => {
+        setStatusModal(prev => ({ ...prev, visible: false }));
+        navigation.goBack();
+      });
 
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha ao salvar os dados no dispositivo.');
+      showStatus('ERROR', 'Erro', 'Falha ao salvar os dados no dispositivo.');
     } finally {
       setLoading(false);
     }
@@ -77,18 +104,29 @@ export const RegistrarVitimaScreen = () => {
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-[#F8FAFC]`}>
+    <SafeAreaView style={[tw`flex-1`, { backgroundColor: colors.background }]}>
       
+      <StatusModal 
+        visible={statusModal.visible}
+        type={statusModal.type}
+        title={statusModal.title}
+        message={statusModal.message}
+        confirmText={statusModal.confirmText}
+        cancelText={statusModal.cancelText}
+        onClose={() => setStatusModal(prev => ({ ...prev, visible: false }))}
+        onConfirm={statusModal.onConfirm}
+      />
+
       {/* HEADER */}
-      <View style={tw`flex-row justify-between items-center px-5 py-4 bg-[#F8FAFC]`}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={tw`p-1`}>
-          <ArrowLeft size={24} color="#1E293B" />
+      <View style={[tw`flex-row justify-between items-center px-5 py-4`, { backgroundColor: colors.background }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[tw`mr-4 p-2 rounded-full`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+          <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         
-        <Text style={tw`text-lg font-bold text-slate-900`}>Nova Vítima</Text>
+        <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>Nova Vítima</Text>
         
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={tw`text-red-600 font-medium`}>Cancelar</Text>
+          <Text style={[tw`font-medium`, { color: colors.danger }]}>Cancelar</Text>
         </TouchableOpacity>
       </View>
 
@@ -99,14 +137,15 @@ export const RegistrarVitimaScreen = () => {
         <ScrollView contentContainerStyle={tw`p-5 pb-32`}>
           
           {/* CARD DO FORMULÁRIO */}
-          <View style={tw`bg-white rounded-2xl p-5 shadow-sm border border-slate-200`}>
+          <View style={[tw`rounded-2xl p-5 shadow-sm border`, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             
             {/* Nome */}
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Nome Completo (Opcional)</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Nome Completo (Opcional)</Text>
               <TextInput
-                style={tw`bg-white border border-gray-300 rounded-lg p-3 text-slate-800`}
+                style={[tw`rounded-lg p-3 text-base`, { backgroundColor: colors.background, color: colors.text, borderWidth: 1, borderColor: colors.border }]}
                 placeholder="Digite o nome da vítima"
+                placeholderTextColor={colors.textLight}
                 value={nome}
                 onChangeText={setNome}
               />
@@ -115,20 +154,22 @@ export const RegistrarVitimaScreen = () => {
             {/* Idade e Sexo */}
             <View style={tw`flex-row mb-4`}>
               <View style={tw`flex-1 mr-2`}>
-                <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Idade</Text>
+                <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Idade</Text>
                 <TextInput
-                  style={tw`bg-white border border-gray-300 rounded-lg p-3 text-slate-800`}
+                  style={[tw`rounded-lg p-3 text-base`, { backgroundColor: colors.background, color: colors.text, borderWidth: 1, borderColor: colors.border }]}
                   placeholder="Ex: 45"
+                  placeholderTextColor={colors.textLight}
                   keyboardType="numeric"
                   value={idade}
                   onChangeText={setIdade}
                 />
               </View>
               <View style={tw`flex-1 ml-2`}>
-                <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Sexo</Text>
+                <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Sexo</Text>
                 <TextInput
-                  style={tw`bg-white border border-gray-300 rounded-lg p-3 text-slate-800`}
+                  style={[tw`rounded-lg p-3 text-base`, { backgroundColor: colors.background, color: colors.text, borderWidth: 1, borderColor: colors.border }]}
                   placeholder="M / F"
+                  placeholderTextColor={colors.textLight}
                   value={sexo}
                   onChangeText={setSexo}
                 />
@@ -137,7 +178,7 @@ export const RegistrarVitimaScreen = () => {
 
             {/* Classificação */}
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Classificação (Toque para selecionar)</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Classificação (Toque para selecionar)</Text>
               
               {/* Linha 1 */}
               <View style={tw`flex-row mb-2`}>
@@ -174,10 +215,11 @@ export const RegistrarVitimaScreen = () => {
 
             {/* Destino */}
             <View style={tw`mb-4`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Destino / Unidade de Saúde</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Destino / Unidade de Saúde</Text>
               <TextInput
-                style={tw`bg-white border border-gray-300 rounded-lg p-3 text-slate-800`}
+                style={[tw`rounded-lg p-3 text-base`, { backgroundColor: colors.background, color: colors.text, borderWidth: 1, borderColor: colors.border }]}
                 placeholder="Ex: Hosp. da Restauração"
+                placeholderTextColor={colors.textLight}
                 value={destino}
                 onChangeText={setDestino}
               />
@@ -185,10 +227,11 @@ export const RegistrarVitimaScreen = () => {
 
             {/* Observações */}
             <View style={tw`mb-2`}>
-              <Text style={tw`text-slate-700 font-bold mb-2 text-sm`}>Observações / Lesões</Text>
+              <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Observações / Lesões</Text>
               <TextInput
-                style={tw`bg-white border border-gray-300 rounded-lg p-3 text-slate-800 h-24`}
+                style={[tw`rounded-lg p-3 text-base h-24`, { backgroundColor: colors.background, color: colors.text, borderWidth: 1, borderColor: colors.border }]}
                 placeholder="Descreva lesões, condições ou observações..."
+                placeholderTextColor={colors.textLight}
                 multiline
                 textAlignVertical="top"
                 value={observacoes}
@@ -201,9 +244,9 @@ export const RegistrarVitimaScreen = () => {
       </KeyboardAvoidingView>
 
       {/* BOTÃO FINAL */}
-      <View style={tw`absolute bottom-0 left-0 right-0 bg-white p-5 border-t border-gray-100`}>
+      <View style={[tw`absolute bottom-0 left-0 right-0 p-5`, { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }]}>
         <TouchableOpacity 
-          style={tw`bg-[#10B981] py-4 rounded-xl items-center shadow-sm`}
+          style={[tw`py-4 rounded-xl items-center shadow-sm`, { backgroundColor: colors.success }]}
           onPress={handleRegister}
           disabled={loading}
         >

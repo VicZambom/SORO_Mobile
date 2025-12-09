@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ScreenWrapper } from '../components/ScreenWrapper';
 import { Card } from '../components/Card';
 import { SkeletonCard } from '../components/SkeletonCard'; 
-import { COLORS } from '../constants/theme'; 
+import { useTheme } from '../context/ThemeContext'; 
 
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -18,6 +18,7 @@ import { useOcorrencias, OcorrenciaAPI } from '../hooks/useOcorrencias';
 
 export const MinhasOcorrencias = () => {
   const navigation = useNavigation<AppNavigationProp>();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { socket } = useSocket();
   const { pendingQueue, isOnline } = useSync();
@@ -66,19 +67,19 @@ export const MinhasOcorrencias = () => {
 
   return (
     <TouchableOpacity 
-      style={tw`bg-orange-100 px-4 py-3 mb-4 rounded-lg flex-row items-center border border-orange-200`}
+      style={[tw`px-4 py-3 mb-4 rounded-lg flex-row items-center`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
       onPress={() => navigation.navigate('Perfil')}
     >
-      <CloudOff size={20} color={COLORS.secondary} style={tw`mr-3`} />
+      <CloudOff size={20} color={colors.danger} style={tw`mr-3`} />
       <View style={tw`flex-1`}>
-        <Text style={tw`text-orange-800 font-bold text-xs uppercase`}>
+        <Text style={[tw`font-bold text-xs uppercase`, { color: colors.text }]}>
           Sincronização Pendente
         </Text>
-        <Text style={tw`text-orange-700 text-xs`}>
+        <Text style={[tw`text-xs`, { color: colors.textLight }]}> 
           {pendingQueue.length} ocorrência(s) aguardando conexão.
         </Text>
       </View>
-      <Text style={tw`text-orange-800 font-bold text-xs`}>Ver</Text>
+      <Text style={[tw`font-bold text-xs`, { color: colors.primary }]}>Ver</Text>
     </TouchableOpacity>
   );
 };
@@ -91,26 +92,26 @@ export const MinhasOcorrencias = () => {
 
   const renderItem = ({ item }: { item: OcorrenciaAPI }) => (
     <Card 
-      style={tw`bg-white border-l-4 border-l-[${COLORS.danger}] border-gray-100 shadow-sm p-4 mb-3 rounded-l-none`}
+      style={[{ backgroundColor: colors.surface, borderLeftWidth: 4, borderLeftColor: colors.danger, padding: 16, marginBottom: 12 }]}
       onPress={() => navigation.navigate('DetalhePendente', { id: item.id_ocorrencia })}
     >
       <View style={tw`flex-row justify-between mb-1`}>
-        <Text style={tw`text-xs font-bold text-[${COLORS.textLight}]`}>
+        <Text style={[{ fontSize: 12, fontWeight: '700', color: colors.textLight }]}>
           {item.nr_aviso ? `#${item.nr_aviso}` : 'S/N'}
         </Text>
-        <Text style={tw`text-xs text-[${COLORS.textLight}]`}>{formatarHora(item.hora_acionamento)}</Text>
+        <Text style={[{ fontSize: 12, color: colors.textLight }]}>{formatarHora(item.hora_acionamento)}</Text>
       </View>
 
-      <Text style={tw`text-base font-bold text-[${COLORS.text}] mb-1`} numberOfLines={1}>
+      <Text style={[{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 6 }]} numberOfLines={1}>
         {item.subgrupo?.descricao_subgrupo || 'Tipo não informado'}
       </Text>
       
-      <Text style={tw`text-sm text-[${COLORS.textLight}] mb-3`}>
+      <Text style={[{ fontSize: 14, color: colors.textLight, marginBottom: 12 }]}>
         {item.bairro?.nome_bairro || 'Local desconhecido'}
       </Text>
       
-      <View style={tw`self-start bg-red-100 px-3 py-1 rounded-full`}>
-        <Text style={tw`text-[${COLORS.danger}] text-xs font-bold uppercase`}>AGUARDANDO</Text>
+      <View style={[{ backgroundColor: '#FEE2E2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' }]}>
+        <Text style={[{ color: colors.danger, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' }]}>AGUARDANDO</Text>
       </View>
     </Card>
   );
@@ -122,7 +123,7 @@ export const MinhasOcorrencias = () => {
       <View style={tw`h-40 bg-gray-200 rounded-xl mb-8 animate-pulse`} />
       
       {/* Simula a lista de pendentes */}
-      <Text style={tw`text-xs font-bold text-[${COLORS.textLight}] uppercase mb-2 ml-1`}>
+      <Text style={[tw`text-xs font-bold uppercase mb-2 ml-1`, { color: colors.textLight }]}>
         Carregando lista...
       </Text>
       {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
@@ -133,16 +134,16 @@ export const MinhasOcorrencias = () => {
     <View>
       <View style={tw`flex-row justify-between items-center mb-6 mt-2`}>
         <View>
-          <Text style={tw`text-2xl font-bold text-[${COLORS.text}]`}>Minhas Ocorrências</Text>
-          <Text style={tw`text-sm text-[${COLORS.textLight}]`}>
+          <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>Minhas Ocorrências</Text>
+          <Text style={[tw`text-sm`, { color: colors.textLight }]}>
             {user?.nome ? `Olá, ${user.nome.split(' ')[0]}` : 'Bem-vindo'}
           </Text>
         </View>
         <TouchableOpacity 
-          style={tw`w-10 h-10 bg-gray-200 rounded-full items-center justify-center border border-[${COLORS.border}]`}
+          style={[tw`w-10 h-10 rounded-full items-center justify-center`, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }]}
           onPress={() => navigation.navigate('Perfil')} 
         >
-          <User color={COLORS.textLight} size={20} />
+          <User color={colors.textLight} size={20} />
         </TouchableOpacity>
       </View>
 
@@ -151,36 +152,36 @@ export const MinhasOcorrencias = () => {
       
       {!loading && (
         <View style={tw`mb-8`}>
-          <Text style={tw`text-xs font-bold text-[${COLORS.textLight}] uppercase mb-2 ml-1`}>
+          <Text style={[tw`text-xs font-bold uppercase mb-2 ml-1`, { color: colors.textLight }]}>
             Em Andamento (Atual)
           </Text>
 
           {ocorrenciaAtual ? (
-            <Card 
-              style={tw`bg-orange-50 border-orange-200 border shadow-sm p-5`}
+                <Card 
+              style={[{ backgroundColor: !isDark ? '#FFF7ED' : colors.surface, borderWidth: 1, borderColor: !isDark ? '#FEEBC8' : colors.border, padding: 16 }]}
               onPress={() => navigation.navigate('DetalheAndamento', { id: ocorrenciaAtual.id_ocorrencia })}
             >
               <View style={tw`flex-row justify-between items-center mb-3`}>
-                <Text style={tw`text-sm font-bold text-slate-700`}>
+                <Text style={[{ fontSize: 14, fontWeight: '700', color: colors.textLight }]}>
                   {ocorrenciaAtual.nr_aviso ? `Aviso ${ocorrenciaAtual.nr_aviso}` : 'Sem Aviso'}
                 </Text>
                 <View style={tw`flex-row items-center`}>
-                  <Clock size={14} color={COLORS.textLight} style={tw`mr-1`} />
-                  <Text style={tw`text-sm font-medium text-slate-600`}>
+                  <Clock size={14} color={colors.textLight} style={tw`mr-1`} />
+                  <Text style={[{ fontSize: 14, color: colors.textLight }]}>
                     {formatarHora(ocorrenciaAtual.hora_acionamento)}
                   </Text>
                 </View>
               </View>
 
-              <Text style={tw`text-xl font-bold text-[${COLORS.text}] mb-1`}>
+              <Text style={[{ fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 6 }]}>
                 {ocorrenciaAtual.subgrupo?.descricao_subgrupo}
               </Text>
-              <Text style={tw`text-base text-slate-600 leading-snug mb-5`}>
+              <Text style={[{ fontSize: 14, color: colors.textLight, marginBottom: 12 }]}>
                 {ocorrenciaAtual.bairro?.nome_bairro}
               </Text>
 
               <TouchableOpacity 
-                style={tw`bg-[${COLORS.secondary}] py-3 rounded-lg items-center shadow-sm`}
+                style={[{ backgroundColor: colors.secondary, paddingVertical: 12, borderRadius: 8, alignItems: 'center' }]}
                 onPress={() => navigation.navigate('DetalheAndamento', { id: ocorrenciaAtual.id_ocorrencia })}
               >
                 <Text style={tw`text-white font-bold text-sm uppercase tracking-wide`}>
@@ -189,15 +190,15 @@ export const MinhasOcorrencias = () => {
               </TouchableOpacity>
             </Card>
           ) : (
-            <View style={tw`bg-gray-50 border-dashed border-2 border-[${COLORS.border}] p-6 rounded-xl items-center justify-center`}>
-              <Text style={tw`text-[${COLORS.textLight}] text-sm`}>Nenhuma ocorrência em andamento.</Text>
+            <View style={[tw`p-6 rounded-xl items-center justify-center`, { backgroundColor: colors.background, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border }] }>
+              <Text style={[{ color: colors.textLight, fontSize: 14 }]}>Nenhuma ocorrência em andamento.</Text>
             </View>
           )}
         </View>
       )}
 
       {!loading && (
-        <Text style={tw`text-xs font-bold text-[${COLORS.textLight}] uppercase mb-2 ml-1`}>
+        <Text style={[tw`text-xs font-bold uppercase mb-2 ml-1`, { color: colors.textLight }]}>
           Fila de Espera (Pendentes)
         </Text>
       )}
@@ -212,8 +213,8 @@ export const MinhasOcorrencias = () => {
           <>
             <View style={tw`flex-row justify-between items-center mb-6 mt-2`}>
               <View>
-                <Text style={tw`text-2xl font-bold text-[${COLORS.text}]`}>Minhas Ocorrências</Text>
-                <Text style={tw`text-sm text-[${COLORS.textLight}]`}>Carregando...</Text>
+                <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>Minhas Ocorrências</Text>
+                <Text style={[tw`text-sm`, { color: colors.textLight }]}>Carregando...</Text>
               </View>
             </View>
             <LoadingView />
@@ -226,7 +227,7 @@ export const MinhasOcorrencias = () => {
             ListHeaderComponent={ListHeader}
             ListEmptyComponent={
               <View style={tw`py-10 items-center`}>
-                <Text style={tw`text-[${COLORS.textLight}]`}>Nenhuma ocorrência pendente.</Text>
+                <Text style={[{ color: colors.textLight }]}>Nenhuma ocorrência pendente.</Text>
               </View>
             }
             showsVerticalScrollIndicator={false}
@@ -235,14 +236,14 @@ export const MinhasOcorrencias = () => {
               <RefreshControl 
                 refreshing={isRefetchingPendentes} 
                 onRefresh={() => { refetchAndamento(); refetchPendentes(); }} 
-                colors={[COLORS.primary]} // Usando a cor do tema
+                colors={[colors.primary]} // Usando a cor do tema
               />
             }
           />
         )}
 
         <TouchableOpacity 
-          style={tw`absolute bottom-6 right-4 bg-[${COLORS.primary}] w-14 h-14 rounded-full items-center justify-center shadow-lg z-50`}
+          style={[tw`absolute bottom-6 right-4 w-14 h-14 rounded-full items-center justify-center shadow-lg z-50`, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('NovaOcorrencia')}
         >
           <Plus color="white" size={28} />

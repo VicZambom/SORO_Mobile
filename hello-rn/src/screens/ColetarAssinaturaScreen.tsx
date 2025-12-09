@@ -8,8 +8,8 @@ import tw from 'twrnc';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { RootStackParamList } from '../types/navigation';
-import { COLORS } from '../constants/theme';
-import { StatusModal, StatusModalType } from '../components/StatusModal'; // Mantendo a melhoria visual
+import { useTheme } from '../context/ThemeContext';
+import { StatusModal, StatusModalType } from '../components/StatusModal';
 
 type ColetarAssinaturaRouteProp = RouteProp<RootStackParamList, 'ColetarAssinatura'>;
 
@@ -40,6 +40,8 @@ export const ColetarAssinaturaScreen = () => {
       onConfirm: onConfirm || (() => setModal(prev => ({ ...prev, visible: false }))),
     });
   };
+
+  const { colors } = useTheme();
 
   const style = `.m-signature-pad { box-shadow: none; border: none; } 
                  .m-signature-pad--body { border: none; }
@@ -88,64 +90,63 @@ export const ColetarAssinaturaScreen = () => {
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-[#F8FAFC]`}>
-      <View style={tw`flex-row justify-between items-center px-5 py-4 bg-[#F8FAFC]`}>
-        <View style={tw`flex-row items-center`}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={tw`p-1 mr-2`}>
-            <ArrowLeft size={24} color={COLORS.text} />
+    <SafeAreaView style={[tw`flex-1`, { backgroundColor: colors.background }]}> 
+      <View style={[tw`flex-row justify-between items-center px-5 py-4`, { backgroundColor: colors.background }]}> 
+        <View style={tw`flex-row items-center`}> 
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[tw`mr-4 p-2 rounded-full`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
+          >
+            <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[tw`text-lg font-bold`, { color: COLORS.text }]}>Assinatura</Text>
+          <Text style={[tw`text-lg font-bold`, { color: colors.text }]}>Assinatura</Text>
         </View>
+
         <TouchableOpacity onPress={handleClear}>
-          <Text style={[tw`font-bold text-sm`, { color: COLORS.danger }]}>Limpar</Text>
+          <Text style={[tw`font-bold text-sm`, { color: colors.danger }]}>Limpar</Text>
         </TouchableOpacity>
       </View>
 
       <View style={tw`flex-1 px-5 pt-2`}>
-        <View style={tw`bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex-1 mb-24`}>
-          <Text style={[tw`font-bold mb-2 text-sm`, { color: COLORS.text }]}>
-            Nome do Signatário
-          </Text>
+        <View style={[tw`rounded-2xl p-5 shadow-sm flex-1 mb-24`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+          <Text style={[tw`font-bold mb-2 text-sm`, { color: colors.text }]}>Nome do Signatário</Text>
+
           <TextInput
-            style={[tw`bg-white border border-gray-300 rounded-lg p-3 mb-6`, { color: COLORS.text }]}
+            style={[tw`rounded-lg p-3 mb-6`, { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.text }]}
             placeholder="Digite o nome completo..."
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={colors.textLight}
             value={nomeSignatario}
             onChangeText={setNomeSignatario}
           />
-          <Text style={[tw`text-sm mb-2`, { color: COLORS.textLight }]}>Desenhe a assinatura abaixo</Text>
-          
-          <View style={tw`flex-1 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 mb-4`}>
+
+          <Text style={[tw`text-sm mb-2`, { color: colors.textLight }]}>Desenhe a assinatura abaixo</Text>
+
+          <View style={[tw`flex-1 rounded-xl overflow-hidden mb-4`, { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background }]}>
             <SignatureScreen
               ref={ref}
               onOK={handleSignatureOK}
               webStyle={style}
               backgroundColor="transparent"
-              descriptionText="Assine aqui"
-              confirmText=""
-              clearText=""
             />
           </View>
         </View>
       </View>
 
-      <View style={tw`absolute bottom-0 left-0 right-0 bg-white p-5 border-t border-gray-100`}>
-        <TouchableOpacity 
-          style={[tw`py-4 rounded-xl items-center shadow-sm`, { backgroundColor: COLORS.success }]}
+      <View style={[tw`absolute bottom-0 left-0 right-0 p-5`, { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }]}> 
+        <TouchableOpacity
+          style={[tw`py-4 rounded-xl items-center shadow-sm`, { backgroundColor: colors.success }]}
           onPress={handleConfirm}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={tw`text-white font-bold text-base uppercase tracking-wider`}>
-              CONFIRMAR E SALVAR
-            </Text>
+            <Text style={[tw`text-white font-bold text-base uppercase tracking-wider`]}>CONFIRMAR E SALVAR</Text>
           )}
         </TouchableOpacity>
       </View>
 
-      <StatusModal 
+      <StatusModal
         visible={modal.visible}
         type={modal.type}
         title={modal.title}

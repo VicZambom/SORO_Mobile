@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { Camera, Video, FileSignature, UserPlus, X } from 'lucide-react-native';
 import tw from 'twrnc';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export interface ActionModalProps {
   visible: boolean;
@@ -11,19 +11,23 @@ export interface ActionModalProps {
 }
 
 export const ActionModal: React.FC<ActionModalProps> = ({ visible, onClose, onAction }) => {
-  
-  const ActionItem = ({ icon: Icon, label, desc, action, color = COLORS.primary }: any) => (
+  const { colors, isDark } = useTheme();
+
+  const ActionItem = ({ icon: Icon, label, desc, action, color }: any) => (
     <TouchableOpacity 
-      style={tw`flex-row items-center p-4 mb-3 bg-slate-50 rounded-xl border border-slate-100 shadow-sm`} 
+      style={[
+        tw`flex-row items-center p-4 mb-3 rounded-xl shadow-sm`,
+        { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+      ]}
       onPress={() => { onClose(); onAction(action); }}
       activeOpacity={0.7}
     >
-      <View style={[tw`w-12 h-12 rounded-full items-center justify-center mr-4`, { backgroundColor: '#DBEAFE' }]}> 
-        <Icon size={24} color={color} />
+      <View style={[tw`w-12 h-12 rounded-full items-center justify-center mr-4`, { backgroundColor: isDark ? '#172554' : '#DBEAFE' }]}> 
+        <Icon size={24} color={color ?? colors.primary} />
       </View>
       <View style={tw`flex-1`}>
-        <Text style={tw`text-base font-bold text-slate-800`}>{label}</Text>
-        {desc && <Text style={tw`text-xs text-slate-500 mt-0.5`}>{desc}</Text>}
+        <Text style={[tw`text-base font-bold`, { color: colors.text }]}>{label}</Text>
+        {desc && <Text style={[tw`text-xs mt-0.5`, { color: colors.textLight }]}>{desc}</Text>}
       </View>
     </TouchableOpacity>
   );
@@ -38,17 +42,17 @@ export const ActionModal: React.FC<ActionModalProps> = ({ visible, onClose, onAc
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={tw`flex-1 bg-black/40 justify-end`}>
           <TouchableWithoutFeedback>
-            <View style={tw`bg-white rounded-t-3xl pt-2 pb-8 px-5 max-h-[80%]`}>
+              <View style={[tw`rounded-t-3xl pt-2 pb-8 px-5 max-h-[80%]`, { backgroundColor: colors.surface }]}>
               
               {/* Handle Bar (Indicador visual de puxar) */}
               <View style={tw`items-center py-3`}>
-                <View style={tw`w-12 h-1.5 bg-gray-300 rounded-full`} />
+                <View style={[{ width: 48, height: 6, borderRadius: 999, backgroundColor: colors.border }]} />
               </View>
 
               <View style={tw`flex-row justify-between items-center mb-6`}>
-                <Text style={tw`text-xl font-bold text-slate-900`}>Adicionar Registro</Text>
-                <TouchableOpacity onPress={onClose} style={tw`p-2 bg-gray-100 rounded-full`}>
-                   <X size={20} color="#64748B" />
+                <Text style={[tw`text-xl font-bold`, { color: colors.text }]}>Adicionar Registro</Text>
+                <TouchableOpacity onPress={onClose} style={[tw`p-2 rounded-full`, { backgroundColor: colors.background }] }>
+                   <X size={20} color={colors.textLight} />
                 </TouchableOpacity>
               </View>
 

@@ -8,7 +8,7 @@ import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'; // Mapa R
 
 import api from '../services/api';
 import { AppNavigationProp, RootStackParamList } from '../types/navigation';
-import { COLORS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
 import { StatusModal, StatusModalType } from '../components/StatusModal'; // Modal Bonito
 
@@ -57,6 +57,7 @@ export const DetalhePendenteScreen: React.FC = () => {
 
   const updateMutation = useUpdateStatusOcorrencia();
   const isUpdating = updateMutation.isPending;
+  const { colors } = useTheme();
 
   // Estado do Modal
   const [statusModal, setStatusModal] = useState({
@@ -148,8 +149,8 @@ export const DetalhePendenteScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={tw`flex-1 justify-center items-center bg-gray-50`}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[tw`flex-1 justify-center items-center`, { backgroundColor: colors.background }]}> 
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -176,7 +177,7 @@ export const DetalhePendenteScreen: React.FC = () => {
   );
 
   return (
-    <View style={tw`flex-1 bg-gray-50`}>
+    <View style={[tw`flex-1`, { backgroundColor: colors.background }]}>
       <StatusModal 
          visible={statusModal.visible}
          type={statusModal.type}
@@ -221,31 +222,30 @@ export const DetalhePendenteScreen: React.FC = () => {
       <ScrollView contentContainerStyle={tw`p-5 pb-32`} showsVerticalScrollIndicator={false}>
           
           {/* CARD DETALHES ORIGINAL */}
-          <View style={tw`bg-white rounded-2xl p-6 shadow-md mb-4 border border-gray-100`}>
-              <Text style={tw`text-2xl font-black text-slate-900 mb-1`}>
+          <View style={[tw`rounded-2xl p-6 shadow-md mb-4`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }] }>
+              <Text style={[tw`text-2xl font-black mb-1`, { color: colors.text }]}>
                 {ocorrencia.subgrupo.descricao_subgrupo}
               </Text>
-              <Text style={tw`text-base font-semibold text-slate-600 mb-3`}>
+              <Text style={[tw`text-base font-semibold mb-3`, { color: colors.textLight }] }>
                 {ocorrencia.bairro.nome_bairro} - {ocorrencia.bairro.municipio?.nome_municipio || 'PE'}
               </Text>
-              <View style={tw`h-px bg-gray-100 my-3`} />
-              <Text style={tw`text-sm text-slate-500 italic leading-relaxed mb-6`}>
+              <View style={[{ height: 1, backgroundColor: colors.border, marginVertical: 12 }]} />
+              <Text style={[tw`text-sm italic leading-relaxed mb-6`, { color: colors.textLight }] }>
                 "Ocorrência registrada via {ocorrencia.forma_acervo?.descricao.toLowerCase() || '...'}. 
                 Verificar situação no local."
               </Text>
               <View style={tw`flex-row flex-wrap justify-between`}>
                 <InfoItem label="Natureza" value={ocorrencia.subgrupo.grupo?.natureza?.descricao || 'N/A'} />
-                <InfoItem label="Prioridade" value="Média" /> 
                 <InfoItem label="Horário" value={formatarHora(ocorrencia.hora_acionamento)} />
                 <InfoItem label="Forma" value={ocorrencia.forma_acervo?.descricao || '...'} />
               </View>
           </View>
 
-          {/* CARD LOCALIZAÇÃO (Com Mapa) */}
-          <View style={tw`bg-white rounded-2xl overflow-hidden shadow-md border border-gray-100 mb-6`}>
-              <View style={tw`p-4 border-b border-gray-100 flex-row items-center`}>
-                  <MapPin size={20} color={COLORS.primary} style={tw`mr-2`} />
-                  <Text style={tw`font-bold text-[${COLORS.text}] text-base`}>Localização</Text>
+          {/* CARD LOCALIZAÇÃO */}
+          <View style={[tw`rounded-2xl overflow-hidden shadow-md mb-6`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }] }>
+              <View style={[tw`p-4 flex-row items-center`, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                  <MapPin size={20} color={colors.primary} style={tw`mr-2`} />
+                  <Text style={[tw`font-bold text-base`, { color: colors.text }]}>Localização</Text>
               </View>
 
               {ocorrencia.localizacao?.latitude && ocorrencia.localizacao?.longitude ? (
@@ -270,40 +270,40 @@ export const DetalhePendenteScreen: React.FC = () => {
                       }}
                     >
                        <View style={tw`items-center`}>
-                         <MapPin size={40} color={COLORS.danger} fill={COLORS.danger} />
+                         <MapPin size={40} color={colors.danger} fill={colors.danger} />
                       </View>
                     </Marker>
                   </MapView>
                   <TouchableOpacity 
-                      style={tw`absolute bottom-3 right-3 bg-white/90 px-3 py-1.5 rounded-lg shadow-sm border border-gray-200`}
+                      style={[tw`absolute bottom-3 right-3 px-3 py-1.5 rounded-lg shadow-sm`, { backgroundColor: colors.surface }]}
                       onPress={handleNavegarMapa}
                   >
-                      <Text style={tw`text-xs font-bold text-[${COLORS.primary}]`}>Abrir GPS</Text>
+                      <Text style={[tw`text-xs font-bold`, { color: colors.primary }]}>Abrir GPS</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <TouchableOpacity 
-                    style={tw`h-40 bg-slate-100 relative items-center justify-center`}
+                    style={[tw`h-40 relative items-center justify-center`, { backgroundColor: colors.background }]}
                     onPress={handleNavegarMapa}
                     activeOpacity={0.9}
                 >
                     <View style={tw`items-center opacity-50`}>
-                        <MapPin size={40} color={COLORS.textLight} />
-                        <Text style={tw`text-xs font-bold text-slate-400 mt-2`}>Sem coordenadas de GPS</Text>
+                        <MapPin size={40} color={colors.textLight} />
+                        <Text style={[tw`text-xs font-bold mt-2`, { color: colors.textLight }]}>Sem coordenadas de GPS</Text>
                     </View>
                 </TouchableOpacity>
               )}
 
-              <View style={tw`p-4 bg-white`}>
-                  <Text style={tw`text-base font-bold text-[${COLORS.text}] mb-1`}>
+              <View style={[tw`p-4`, { backgroundColor: colors.surface }] }>
+                  <Text style={[tw`text-base font-bold mb-1`, { color: colors.text }]}>
                       {ocorrencia.localizacao?.logradouro || 'Logradouro não informado'}
                   </Text>
-                  <Text style={tw`text-sm text-[${COLORS.textLight}]`}>
+                  <Text style={[tw`text-sm`, { color: colors.textLight }] }>
                           {ocorrencia.bairro.nome_bairro}, {ocorrencia.bairro.municipio?.nome_municipio}
                   </Text>
                   {ocorrencia.localizacao?.referencia_logradouro && (
-                      <View style={tw`mt-3 bg-blue-50 p-2 rounded-lg`}>
-                          <Text style={tw`text-xs text-blue-700`}>
+                      <View style={[tw`mt-3 p-2 rounded-lg`, { backgroundColor: '#EFF6FF' }] }>
+                          <Text style={[tw`text-xs`, { color: '#1E40AF' }]}>
                               <Text style={tw`font-bold`}>Ref: </Text>
                               {ocorrencia.localizacao.referencia_logradouro}
                           </Text>
@@ -313,12 +313,12 @@ export const DetalhePendenteScreen: React.FC = () => {
           </View>
       </ScrollView>
 
-      {/* FOOTER */}
-      <View style={[tw`absolute bottom-0 left-0 right-0 bg-white px-5 pt-4 pb-8 border-t border-gray-100`, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }]}>
+        {/* FOOTER */}
+        <View style={[tw`absolute bottom-0 left-0 right-0 px-5 pt-4 pb-8`, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }] }>
         <TouchableOpacity 
             style={[
                 tw`py-4 rounded-xl shadow-lg flex-row items-center justify-center`,
-                isUpdating ? tw`bg-gray-400` : tw`bg-[#061C43]`
+            isUpdating ? { backgroundColor: colors.border } : { backgroundColor: colors.primary }
             ]}
             onPress={() => {
                 if(isPendente) handleBotaoPrincipal();

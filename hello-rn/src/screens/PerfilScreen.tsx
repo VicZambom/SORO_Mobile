@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AppNavigationProp } from '../types/navigation';
 import { useSync } from '../context/SyncContext';
+import { useTheme } from '../context/ThemeContext';
 
 export const PerfilScreen = () => {
   const navigation = useNavigation<AppNavigationProp>();
@@ -17,7 +18,7 @@ export const PerfilScreen = () => {
 
   // Dados de estado da UI
   const [notificacoesAtivas, setNotificacoesAtivas] = useState(true);
-  const [temaEscuroAtivo, setTemaEscuroAtivo] = useState(false);
+  const { colors, isDark, toggle } = useTheme();
 
   // Função de Logout com confirmação
   const handleSignOut = () => {
@@ -37,12 +38,12 @@ export const PerfilScreen = () => {
       <View style={tw`flex-row items-center mb-6 mt-2 px-2`}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={tw`mr-4 p-2 bg-white rounded-full border border-slate-200`}
+          style={[tw`mr-4 p-2 rounded-full`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
         >
-          <ArrowLeft size={22} color="#334155" />
+          <ArrowLeft size={22} color={colors.text} />
         </TouchableOpacity>
 
-        <Text style={tw`text-2xl font-bold text-slate-900`}>
+        <Text style={[tw`text-2xl font-bold`, { color: colors.text }]}>
           Perfil
         </Text>
       </View>
@@ -50,7 +51,7 @@ export const PerfilScreen = () => {
       <ScrollView style={tw`px-2 pb-10`} showsVerticalScrollIndicator={false}>
 
         {/* CARD DE PERFIL */}
-        <View style={tw`bg-white rounded-xl p-5 mb-5 border border-slate-200 shadow-sm`}>
+        <View style={[tw`rounded-xl p-5 mb-5 shadow-sm`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }] }>
           <View style={tw`flex-row items-center mb-5`}>
             {/* Iniciais do Nome */}
             <View style={tw`w-16 h-16 rounded-full bg-blue-600 items-center justify-center mr-4`}>
@@ -61,13 +62,13 @@ export const PerfilScreen = () => {
 
             <View style={tw`flex-1`}>
               {/* Nome do Usuário */}
-              <Text style={tw`text-lg font-bold text-slate-900`} numberOfLines={1}>
+              <Text style={[tw`text-lg font-bold`, { color: colors.text }]} numberOfLines={1}>
                 {user?.nome || 'Usuário'}
               </Text>
               
               <View style={tw`flex-row items-center mt-1`}>
-                <MapPin size={14} color="#64748b" />
-                <Text style={tw`text-slate-500 ml-1 text-xs`}>
+                <MapPin size={14} color={colors.textLight} />
+                <Text style={[tw`ml-1 text-xs`, { color: colors.textLight }]}>
                    Unidade Operacional
                 </Text>
               </View>
@@ -82,22 +83,22 @@ export const PerfilScreen = () => {
           </View>
 
           {/* Matrícula */}
-          <View style={tw`flex-row items-center py-3 border-t border-gray-100`}>
-            <IdCard size={20} color="#64748b" />
+          <View style={[tw`flex-row items-center py-3`, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+            <IdCard size={20} color={colors.textLight} />
             <View style={tw`ml-3`}>
-              <Text style={tw`text-xs text-slate-400 font-medium`}>Matrícula</Text>
-              <Text style={tw`text-sm text-slate-900 font-semibold`}>
+              <Text style={[tw`text-xs font-medium`, { color: colors.textLight }]}>Matrícula</Text>
+              <Text style={[tw`text-sm font-semibold`, { color: colors.text }]}>
                 {user?.matricula || '---'}
               </Text>
             </View>
           </View>
 
           {/* Email */}
-          <View style={tw`flex-row items-center py-3 border-t border-gray-100`}>
-            <Mail size={20} color="#64748b" />
+          <View style={[tw`flex-row items-center py-3`, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+            <Mail size={20} color={colors.textLight} />
             <View style={tw`ml-3 flex-1`}>
-              <Text style={tw`text-xs text-slate-400 font-medium`}>Email Institucional</Text>
-              <Text style={tw`text-sm text-slate-900 font-semibold`} numberOfLines={1}>
+              <Text style={[tw`text-xs font-medium`, { color: colors.textLight }]}>Email Institucional</Text>
+              <Text style={[tw`text-sm font-semibold`, { color: colors.text }]} numberOfLines={1}>
                 {user?.email || '---'}
               </Text>
             </View>
@@ -105,23 +106,23 @@ export const PerfilScreen = () => {
         </View>
 
         {/* STATUS DO SISTEMA */}
-        <Text style={tw`text-xs font-bold text-slate-500 mb-2 px-1 mt-2 uppercase`}>
+        <Text style={[tw`text-xs font-bold mb-2 px-1 mt-2 uppercase`, { color: colors.textLight }]}>
           Sincronização e Rede
         </Text>
 
-        <View style={tw`bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden`}>
+        <View style={[tw`rounded-xl mb-6 overflow-hidden`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
           <View style={tw`flex-row items-center p-4`}>
             {isOnline ? (
-              <Cloud size={28} color="#10B981" /> // Verde se online
+              <Cloud size={28} color={colors.success} /> // Verde se online
             ) : (
-              <CloudOff size={28} color="#EF4444" /> // Vermelho se offline
+              <CloudOff size={28} color={colors.danger} /> // Vermelho se offline
             )}
             
             <View style={tw`ml-4 flex-1`}>
-              <Text style={tw`text-base font-bold text-slate-900`}>
+              <Text style={[tw`text-base font-bold`, { color: colors.text }]}>
                 {isOnline ? 'Online' : 'Offline'}
               </Text>
-              <Text style={tw`text-slate-500 text-xs`}>
+              <Text style={[tw`text-xs`, { color: colors.textLight }]}>
                 {pendingQueue.length > 0 
                   ? `Você tem ${pendingQueue.length} registro(s) aguardando envio.`
                   : 'Todos os dados estão sincronizados.'}
@@ -132,7 +133,7 @@ export const PerfilScreen = () => {
           {/* Botão só aparece se houver pendências */}
           {pendingQueue.length > 0 && (
             <TouchableOpacity
-              style={tw`bg-slate-800 py-3 items-center`}
+              style={[tw`py-3 items-center`, { backgroundColor: colors.primary }]}
               onPress={syncNow} 
             >
               <Text style={tw`text-white font-bold text-sm tracking-wide`}>
@@ -143,15 +144,14 @@ export const PerfilScreen = () => {
         </View>
 
         {/* PREFERÊNCIAS */}
-        <Text style={tw`text-xs font-bold text-slate-500 mb-2 px-1 uppercase`}>
+        <Text style={[tw`text-xs font-bold mb-2 px-1 uppercase`, { color: colors.textLight }]}>
           App
         </Text>
-
-        <View style={tw`bg-white rounded-xl border border-slate-200 mb-6`}>
-          <View style={tw`flex-row justify-between items-center px-4 py-3 border-b border-slate-100`}>
+        <View style={[tw`rounded-xl mb-6`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }] }>
+          <View style={[tw`flex-row justify-between items-center px-4 py-3`, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
             <View style={tw`flex-row items-center`}>
-              <Bell size={20} color="#334155" />
-              <Text style={tw`text-sm text-slate-900 ml-3 font-medium`}>Notificações</Text>
+              <Bell size={20} color={colors.text} />
+              <Text style={[tw`text-sm ml-3 font-medium`, { color: colors.text }]}>Notificações</Text>
             </View>
             <Switch 
               value={notificacoesAtivas} 
@@ -160,15 +160,15 @@ export const PerfilScreen = () => {
             />
           </View>
 
-          <View style={tw`flex-row justify-between items-center px-4 py-3 border-b border-slate-100`}>
+          <View style={[tw`flex-row justify-between items-center px-4 py-3`, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
             <View style={tw`flex-row items-center`}>
-              <Moon size={20} color="#334155" />
-              <Text style={tw`text-sm text-slate-900 ml-3 font-medium`}>Modo Escuro</Text>
+              <Moon size={20} color={colors.text} />
+              <Text style={[tw`text-sm ml-3 font-medium`, { color: colors.text }]}>Modo Escuro</Text>
             </View>
             <Switch 
-              value={temaEscuroAtivo} 
-              onValueChange={setTemaEscuroAtivo}
-              trackColor={{ false: "#e2e8f0", true: "#0f172a" }}
+              value={isDark} 
+              onValueChange={toggle}
+              trackColor={{ false: colors.border, true: colors.primary }}
             />
           </View>
 
@@ -177,21 +177,20 @@ export const PerfilScreen = () => {
              onPress={() => navigation.navigate('Sobre')}
           >
             <View style={tw`flex-row items-center`}>
-              <BadgeInfo size={20} color="#334155" />
-              <Text style={tw`text-sm text-slate-900 ml-3 font-medium`}>Sobre o S.O.R.O.</Text>
+              <BadgeInfo size={20} color={colors.text} />
+              <Text style={[tw`text-sm ml-3 font-medium`, { color: colors.text }]}>Sobre o S.O.R.O.</Text>
             </View>
-            <ChevronRight size={20} color="#94a3b8" />
+            <ChevronRight size={20} color={colors.textLight} />
           </TouchableOpacity>
         </View>
 
         {/* BOTÃO DE SAIR */}
         <TouchableOpacity
           onPress={handleSignOut}
-          style={tw`flex-row bg-red-50 px-4 py-3 rounded-xl 
-          items-center border border-red-100 justify-center mb-8`}
+          style={[tw`flex-row px-4 py-3 rounded-xl items-center justify-center mb-8`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
         >
-          <LogOut size={18} color="#ef4444" style={tw`mr-2`} />
-          <Text style={tw`text-red-600 font-bold text-sm`}>Sair da Conta</Text>
+          <LogOut size={18} color={colors.danger} style={tw`mr-2`} />
+          <Text style={[tw`text-sm`, { color: colors.textLight, fontWeight: '600' }]}>Sair da Conta</Text>
         </TouchableOpacity>
       </ScrollView>
     </ScreenWrapper>

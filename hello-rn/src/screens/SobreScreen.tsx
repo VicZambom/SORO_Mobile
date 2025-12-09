@@ -4,24 +4,26 @@ import tw from 'twrnc';
 import { ArrowLeft } from 'lucide-react-native';
 import { ScreenWrapper } from '../components/ScreenWrapper';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 export const SobreScreen = () => {
   const navigation = useNavigation();
+  const { colors } = useTheme();
 
   return (
     <ScreenWrapper>
-      <ScrollView showsVerticalScrollIndicator={false} style={tw`bg-white`}>
+      <ScrollView showsVerticalScrollIndicator={false} style={[tw`flex-1`, { backgroundColor: colors.background }]}>
 
         {/* Header */}
         <View style={tw`flex-row items-center px-3 mt-3 mb-6`}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={tw`mr-3 p-2 rounded-full border border-slate-300 bg-white`}
+            style={[tw`mr-4 p-2 rounded-full`, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}
           >
-            <ArrowLeft size={22} color="#0A1A36" />
+            <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
 
-          <Text style={tw`text-base text-[#0A1A36] font-medium`}>
+          <Text style={[tw`text-base font-medium`, { color: colors.text }]}>
             Sobre o S.O.R.O.
           </Text>
         </View>
@@ -34,22 +36,22 @@ export const SobreScreen = () => {
             resizeMode="contain"
           />
 
-          <Text style={tw`text-2xl text-[#0A1A36] font-bold mb-1`}>
+          <Text style={[tw`text-2xl font-bold mb-1`, { color: colors.text }]}>
             S.O.R.O
           </Text>
 
-          <Text style={tw`text-sm text-[#0A1A36] text-center`}>
+          <Text style={[tw`text-sm text-center`, { color: colors.textLight }]}>
             Sistema Organizacional{"\n"}para Registros de Ocorrências
           </Text>
         </View>
 
         {/* Card Sobre o Projeto */}
-        <View style={tw`bg-white border border-slate-200 rounded-xl p-5 mx-4 mb-5`}>
-          <Text style={tw`text-[#0A1A36] text-base font-semibold mb-3`}>
+        <View style={[tw`border rounded-xl p-5 mx-4 mb-5`, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[tw`text-base font-semibold mb-3`, { color: colors.text }]}>
             Sobre o Projeto
           </Text>
 
-          <Text style={tw`text-[#4B5563] leading-5 text-sm`}>
+          <Text style={[tw`leading-5 text-sm`, { color: colors.textLight }]}>
             O S.O.R.O. é uma solução de coleta e gestão de dados de ocorrências em
             campo, desenvolvida para o Corpo de Bombeiros Militar de Pernambuco
             (CBMPE). A solução é composta por este aplicativo mobile (para
@@ -59,34 +61,34 @@ export const SobreScreen = () => {
         </View>
 
         {/* Card Créditos Acadêmicos */}
-        <View style={tw`bg-white border border-slate-200 rounded-xl p-5 mx-4 mb-5`}>
-          <Text style={tw`text-[#0A1A36] text-base font-semibold mb-3`}>
+        <View style={[tw`border rounded-xl p-5 mx-4 mb-5`, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[tw`text-base font-semibold mb-3`, { color: colors.text }]}>
             Créditos Acadêmicos
           </Text>
 
-          <Text style={tw`text-[#4B5563] leading-5 text-sm mb-3`}>
+          <Text style={[tw`leading-5 text-sm mb-3`, { color: colors.textLight }]}>
             Este sistema foi desenvolvido como Projeto Integrador da Turma 44 da
             Faculdade Senac Pernambuco, sob a orientação dos professores Danilo
             Farias, Geraldo Gomes, Marcos Tenorio e Sônia Gomes.
           </Text>
 
-          <Text style={tw`text-[#0A1A36] text-base font-semibold mb-2`}>
+          <Text style={[tw`text-base font-semibold mb-2`, { color: colors.text }]}>
             Equipe:
           </Text>
 
           <View style={tw`pl-2`}>
-            <Text style={tw`text-[#4B5563] text-sm mb-1`}>• Arthur Henrique Silveira de Paula</Text>
-            <Text style={tw`text-[#4B5563] text-sm mb-1`}>• Maira Lourenço de Melo</Text>
-            <Text style={tw`text-[#4B5563] text-sm mb-1`}>• Manoel Olímpio de Melo Neto</Text>
-            <Text style={tw`text-[#4B5563] text-sm mb-1`}>• Matheus Willian Lima Oliveira</Text>
-            <Text style={tw`text-[#4B5563] text-sm mb-1`}>• Victor Henrique Gomes de Melo</Text>
-            <Text style={tw`text-[#4B5563] text-sm mb-1`}>• Victória Gouveia Zambom</Text>
+            <Text style={[tw`text-sm mb-1`, { color: colors.textLight }]}>• Arthur Henrique Silveira de Paula</Text>
+            <Text style={[tw`text-sm mb-1`, { color: colors.textLight }]}>• Maira Lourenço de Melo</Text>
+            <Text style={[tw`text-sm mb-1`, { color: colors.textLight }]}>• Manoel Olímpio de Melo Neto</Text>
+            <Text style={[tw`text-sm mb-1`, { color: colors.textLight }]}>• Matheus Willian Lima Oliveira</Text>
+            <Text style={[tw`text-sm mb-1`, { color: colors.textLight }]}>• Victor Henrique Gomes de Melo</Text>
+            <Text style={[tw`text-sm mb-1`, { color: colors.textLight }]}>• Victória Gouveia Zambom</Text>
           </View>
         </View>
 
         {/* Versão */}
         <View style={tw`mt-4 mb-10 items-center`}>
-          <Text style={tw`text-xs text-slate-400`}>
+          <Text style={[tw`text-xs`, { color: colors.textLight }]}>
             Versão 1.0.2
           </Text>
         </View>
