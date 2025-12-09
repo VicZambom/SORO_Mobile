@@ -19,7 +19,7 @@ import { useSync } from '../context/SyncContext';
 import { COLORS } from '../constants/theme';
 import { useCreateOcorrencia } from '../hooks/useOcorrenciaMutations';
 import { SelectionModal } from '../components/SelectionModal';
-import { StatusModal, StatusModalType } from '../components/StatusModal'; // NOVO IMPORT
+import { StatusModal, StatusModalType } from '../components/StatusModal';
 
 const ocorrenciaSchema = z.object({
   naturezaId: z.string().min(1, "Selecione uma natureza"),
@@ -108,11 +108,9 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   const { isOnline, addToQueue } = useSync();
   const [step, setStep] = useState(1);
   
-  // Hook de Mutação 
   const createMutation = useCreateOcorrencia();
   const isSubmitting = createMutation.isPending;
 
-  // --- ESTADO DO STATUS MODAL ---
   const [statusModal, setStatusModal] = useState({
     visible: false,
     type: 'INFO' as StatusModalType,
@@ -187,9 +185,14 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     
     setLoadingList(true);
     try {
-      const response = await api.get(`/api/v3/grupos/natureza/${item.id}`);
+      const response = await api.get('/api/v3/grupos', {
+        params: { naturezaId: item.id }
+      });
       setGrupos(response.data.map((g: any) => ({ id: g.id_grupo, label: g.descricao_grupo })));
-    } catch (e) { console.error(e); } finally { setLoadingList(false); }
+    } catch (e) { 
+      console.error(e); 
+      showStatus('ERROR', 'Erro', 'Não foi possível carregar os grupos.');
+    } finally { setLoadingList(false); }
   };
 
   const handleSelectGrupo = async (item: Option) => {
@@ -199,9 +202,14 @@ export const NovaOcorrenciaScreen: React.FC = () => {
 
     setLoadingList(true);
     try {
-      const response = await api.get(`/api/v3/subgrupos/grupo/${item.id}`);
+      const response = await api.get('/api/v3/subgrupos', {
+        params: { grupoId: item.id }
+      });
       setSubgrupos(response.data.map((s: any) => ({ id: s.id_subgrupo, label: s.descricao_subgrupo })));
-    } catch (e) { console.error(e); } finally { setLoadingList(false); }
+    } catch (e) { 
+      console.error(e); 
+      showStatus('ERROR', 'Erro', 'Não foi possível carregar os subgrupos.');
+    } finally { setLoadingList(false); }
   };
 
   const handleGetLocation = async () => {
@@ -209,7 +217,7 @@ export const NovaOcorrenciaScreen: React.FC = () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        showStatus('ERROR', 'Permissão Negada', 'Permissão de localização é necessária para pegar o GPS.');
+        showStatus('ERROR', 'Permissão Negada', 'Precisamos da permissão para acessar o GPS.');
         return;
       }
 
@@ -241,10 +249,12 @@ export const NovaOcorrenciaScreen: React.FC = () => {
   };
 
   const onSubmit = async (data: OcorrenciaFormData) => {
+    const now = new Date();
+    // CORREÇÃO: Enviando data e hora no formato ISO completo para satisfazer o validador .datetime() do backend
     const payload = {
         nr_aviso: data.nrAviso,
-        data_acionamento: new Date().toISOString().split('T')[0],
-        hora_acionamento: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        data_acionamento: now.toISOString(),
+        hora_acionamento: now.toISOString(),
         id_subgrupo_fk: data.subgrupoId,
         id_bairro_fk: data.bairroId,
         id_forma_acervo_fk: data.formaAcervoId,
@@ -265,9 +275,10 @@ export const NovaOcorrenciaScreen: React.FC = () => {
                 navigation.navigate('MinhasOcorrencias');
             });
          },
-         onError: (error) => {
-            showStatus('ERROR', 'Erro ao Criar', 'Falha ao enviar dados para o servidor.');
-            console.error(error);
+         onError: (error: any) => {
+            console.error("Erro na criação:", error.response?.data || error);
+            const msg = error.response?.data?.message || 'Falha ao enviar dados para o servidor.';
+            showStatus('ERROR', 'Erro ao Criar', msg);
          }
        });
     } else {
@@ -430,8 +441,6 @@ export const NovaOcorrenciaScreen: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
-
-      {/* --- SELECTION MODALS (Usando o componente unificado) --- */}
       
       <SelectionModal 
         visible={modalType === 'natureza'} 
