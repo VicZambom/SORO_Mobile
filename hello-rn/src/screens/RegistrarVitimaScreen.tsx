@@ -7,6 +7,7 @@ import tw from 'twrnc';
 
 import api from '../services/api';
 import { RootStackParamList } from '../types/navigation';
+import { saveVitimaLocal } from '../utils/vitimaStorage';
 
 type RegistrarVitimaRouteProp = RouteProp<RootStackParamList, 'RegistrarVitima'>;
 
@@ -42,19 +43,17 @@ export const RegistrarVitimaScreen = () => {
         classificacao_vitima: classificacao,
         destino_vitima: destino,
         lesoes_json: { descricao: observacoes }, 
-        id_ocorrencia_fk: ocorrenciaId
       };
 
-      await api.post(`/api/v3/ocorrencias/${ocorrenciaId}/vitimas`, payload);
+      await saveVitimaLocal(ocorrenciaId, payload);
 
-      Alert.alert('Sucesso', 'Vítima registrada com sucesso!', [
+      Alert.alert('Sucesso', 'Vítima registrada (Salvo no Dispositivo)', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
 
     } catch (error) {
       console.error(error);
-      Alert.alert('Sucesso (Simulado)', 'Vítima registrada localmente.');
-      navigation.goBack();
+      Alert.alert('Erro', 'Falha ao salvar os dados no dispositivo.');
     } finally {
       setLoading(false);
     }

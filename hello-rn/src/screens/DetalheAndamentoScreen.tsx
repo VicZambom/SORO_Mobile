@@ -12,7 +12,8 @@ import api from '../services/api';
 import { AppNavigationProp, RootStackParamList } from '../types/navigation';
 import { ActionModal } from '../components/ActionModal';
 import { COLORS } from '../constants/theme';
-import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations'; // <--- Importado
+import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations'; 
+import { getVitimasLocais } from '../utils/vitimaStorage';
 
 // --- TIPAGEM ---
 interface Midia {
@@ -232,8 +233,26 @@ export const DetalheAndamentoScreen = () => {
 
   const fetchDetalhes = async () => {
     try {
+      // 1. Busca os dados oficiais da API
       const response = await api.get(`/api/v3/ocorrencias/${id}`);
-      setOcorrencia(response.data);
+      const dadosApi = response.data;
+
+      // 2. Busca as vítimas salvas localmente
+      const vitimasLocais = await getVitimasLocais(id);
+
+      // 3. Mescla as listas (API + Local)
+      // Se a API retornar vitimas (array vazio ou com dados), juntamos com as locais
+      const listaCompletaVitimas = [
+        ...(dadosApi.vitimas || []), 
+        ...vitimasLocais
+      ];
+
+      // 4. Atualiza o estado com a lista combinada
+      setOcorrencia({
+        ...dadosApi,
+        vitimas: listaCompletaVitimas
+      });
+
     } catch (error) {
       console.error(error);
       Alert.alert('Erro', 'Falha ao carregar detalhes.');
