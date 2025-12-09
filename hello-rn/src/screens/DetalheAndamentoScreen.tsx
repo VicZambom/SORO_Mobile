@@ -7,12 +7,12 @@ import { ArrowLeft, MapPin, Clock, Camera, MoreVertical, User, CheckCircle, File
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
 import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Para assinatura offline
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import api from '../services/api';
 import { AppNavigationProp, RootStackParamList } from '../types/navigation';
 import { ActionModal } from '../components/ActionModal';
-import { StatusModal, StatusModalType } from '../components/StatusModal'; // NOVO IMPORT
+import { StatusModal, StatusModalType } from '../components/StatusModal';
 import { COLORS } from '../constants/theme';
 import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
 import { getVitimasLocais } from '../utils/vitimaStorage';
@@ -22,6 +22,7 @@ interface Midia {
   id_midia: string;
   url_caminho: string;
   tipo_arquivo: string;
+  isTemp?: boolean; // Para identificar upload em andamento
 }
 
 interface OcorrenciaFull {
@@ -65,9 +66,8 @@ interface OcorrenciaFull {
 
 const Tab = createMaterialTopTabNavigator();
 
-// --- ABA GERAL (Com Assinatura Offline/Online) ---
+// --- ABA GERAL ---
 const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
-  // Procura assinatura (seja url normal ou base64 local marcada como 'local_sig')
   const assinatura = ocorrencia.midias.find(m => 
     m.url_caminho.toLowerCase().includes('assinatura') || m.id_midia === 'local_sig'
   );
@@ -105,7 +105,6 @@ const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
         </View>
       </View>
       
-      {/* Bloco de Assinatura */}
       <Text style={[tw`text-lg font-bold mb-3`, { color: COLORS.text }]}>Assinatura do Responsável</Text>
       
       <View style={tw`bg-slate-50 rounded-xl border border-slate-200 overflow-hidden min-h-[150px] justify-center items-center mb-10`}>
@@ -129,13 +128,12 @@ const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
           </View>
         )}
       </View>
-      
       <View style={{ height: 100 }} />
     </ScrollView>
   );
 };
 
-// --- ABA MÍDIA ---
+// --- ABA MÍDIA (OTIMISTA) ---
 const MidiaTab = ({ ocorrencia, onAddPress }: { ocorrencia: OcorrenciaFull, onAddPress: () => void }) => {
   return (
     <ScrollView style={tw`flex-1 bg-white p-5`}>
@@ -155,8 +153,19 @@ const MidiaTab = ({ ocorrencia, onAddPress }: { ocorrencia: OcorrenciaFull, onAd
         </TouchableOpacity>
 
         {ocorrencia.midias.map((midia) => (
-          <TouchableOpacity key={midia.id_midia} style={tw`w-[31%] aspect-square bg-slate-200 rounded-xl mb-3 overflow-hidden relative`}>
+          <TouchableOpacity 
+            key={midia.id_midia} 
+            style={[
+                tw`w-[31%] aspect-square bg-slate-200 rounded-xl mb-3 overflow-hidden relative`,
+                midia.isTemp ? { opacity: 0.5 } : {} // Feedback visual de carregamento
+            ]}
+          >
             <Image source={{ uri: midia.url_caminho }} style={tw`w-full h-full`} resizeMode="cover" />
+            {midia.isTemp && (
+                <View style={tw`absolute inset-0 items-center justify-center`}>
+                    <ActivityIndicator color="#fff" />
+                </View>
+            )}
           </TouchableOpacity>
         ))}
         <View style={tw`w-[31%]`} />
@@ -226,23 +235,20 @@ export const DetalheAndamentoScreen = () => {
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [isActionModalVisible, setIsActionModalVisible] = useState(false);
-  const [uploading, setUploading] = useState(false);
-
-  // --- NOVO ESTADO DO MODAL DE FEEDBACK ---
+  
   const [statusModal, setStatusModal] = useState({
     visible: false,
     type: 'INFO' as StatusModalType,
     title: '',
     message: '',
     confirmText: 'OK',
-    cancelText: undefined as string | undefined, // Se indefinido, não mostra botão cancelar
+    cancelText: undefined as string | undefined,
     onConfirm: () => {},
   });
 
   const updateMutation = useUpdateStatusOcorrencia();
   const isFinalizing = updateMutation.isPending;
 
-  // Função helper para abrir o modal de status
   const showStatus = (type: StatusModalType, title: string, msg: string, onConfirm?: () => void, cancelText?: string, confirmText: string = 'OK') => {
     setStatusModal({
       visible: true,
@@ -261,9 +267,8 @@ export const DetalheAndamentoScreen = () => {
       const dadosApi = response.data;
       
       const vitimasLocais = await getVitimasLocais(id);
-      
-      // Lógica Assinatura Offline
       const assinaturaLocalJson = await AsyncStorage.getItem(`@SORO:assinatura_${id}`);
+      
       let midiasAtualizadas = [...(dadosApi.midias || [])];
 
       if (assinaturaLocalJson) {
@@ -275,14 +280,9 @@ export const DetalheAndamentoScreen = () => {
         });
       }
 
-      const listaCompletaVitimas = [
-        ...(dadosApi.vitimas || []), 
-        ...vitimasLocais
-      ];
-
       setOcorrencia({
         ...dadosApi,
-        vitimas: listaCompletaVitimas,
+        vitimas: [...(dadosApi.vitimas || []), ...vitimasLocais],
         midias: midiasAtualizadas
       });
     } catch (error) {
@@ -312,6 +312,7 @@ export const DetalheAndamentoScreen = () => {
     if (status !== 'granted') return showStatus('WARNING', 'Permissão', 'Precisamos de acesso à câmera.');
     
     const result = await ImagePicker.launchCameraAsync({
+      // CORREÇÃO: Voltamos para MediaTypeOptions para evitar erro de TS
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
       quality: 0.7,
@@ -322,7 +323,25 @@ export const DetalheAndamentoScreen = () => {
 
   const processUpload = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!ocorrencia) return;
-    setUploading(true);
+
+    // 1. OTIMISTA: Exibe a foto imediatamente
+    const tempId = `temp_${new Date().getTime()}`;
+    const novaMidiaTemp: Midia = {
+        id_midia: tempId,
+        url_caminho: asset.uri,
+        tipo_arquivo: 'image/jpeg',
+        isTemp: true,
+    };
+
+    setOcorrencia(prev => {
+        if (!prev) return null;
+        return {
+            ...prev,
+            midias: [novaMidiaTemp, ...prev.midias] 
+        };
+    });
+
+    // 2. Upload em Background
     try {
       const formData = new FormData();
       const filename = asset.uri.split('/').pop();
@@ -336,27 +355,34 @@ export const DetalheAndamentoScreen = () => {
         formData, 
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
+      
+      // 3. Sucesso: Atualiza o item (remove flag isTemp)
+      setOcorrencia(prev => {
+          if(!prev) return null;
+          const novasMidias = prev.midias.map(m => 
+              m.id_midia === tempId ? { ...response.data.data, isTemp: false } : m
+          );
+          return { ...prev, midias: novasMidias };
+      });
 
-      showStatus('SUCCESS', 'Sucesso', 'Foto registrada!');
-      setOcorrencia(prev => prev ? { ...prev, midias: [...prev.midias, response.data.data] } : null);
     } catch (error) {
       console.error(error);
-      showStatus('ERROR', 'Erro', 'Falha ao enviar a foto.');
-    } finally {
-      setUploading(false);
+      // 4. Erro: Remove a imagem da lista
+      setOcorrencia(prev => {
+          if(!prev) return null;
+          return { ...prev, midias: prev.midias.filter(m => m.id_midia !== tempId) };
+      });
+      showStatus('ERROR', 'Erro', 'Falha ao enviar a foto. Tente novamente.');
     }
   };
 
-  // --- NOVA LÓGICA DE FINALIZAR COM MODAL ---
   const handleFinalizar = () => {
-      // 1. Abre modal de confirmação (WARNING/Amarelo)
       showStatus(
         'WARNING', 
         "Finalizar Ocorrência?", 
         "Deseja encerrar este atendimento? A ocorrência será marcada como concluída.", 
         () => {
-             // 2. Se confirmado, executa a mutação
-             setStatusModal(prev => ({ ...prev, visible: false })); // Fecha o de confirmação
+             setStatusModal(prev => ({ ...prev, visible: false }));
              if (!ocorrencia) return;
 
              updateMutation.mutate({
@@ -365,7 +391,6 @@ export const DetalheAndamentoScreen = () => {
                 nr_aviso: ocorrencia.nr_aviso
             }, {
                 onSuccess: () => {
-                    // 3. Sucesso (SUCCESS/Verde)
                     showStatus('SUCCESS', "Ocorrência Finalizada!", "Bom trabalho. O registro foi encerrado.", () => {
                         setStatusModal(prev => ({ ...prev, visible: false }));
                         navigation.navigate('MinhasOcorrencias');
@@ -376,8 +401,8 @@ export const DetalheAndamentoScreen = () => {
                 }
             });
         },
-        "Cancelar", // Texto do botão cancelar
-        "Confirmar" // Texto do botão confirmar
+        "Cancelar",
+        "Confirmar"
       );
   }
 
@@ -393,21 +418,12 @@ export const DetalheAndamentoScreen = () => {
 
   return (
     <SafeAreaView style={tw`flex-1 bg-[#FFF7ED]`} edges={['top']}>
-       {uploading && (
-        <View style={tw`absolute inset-0 bg-black/50 z-50 items-center justify-center`}>
-          <ActivityIndicator size="large" color="white" />
-          <Text style={tw`text-white font-bold mt-4`}>Enviando...</Text>
-        </View>
-      )}
-
-       {/* MODAL DE AÇÕES (Foto/Assinatura) */}
        <ActionModal 
          visible={isActionModalVisible} 
          onClose={() => setIsActionModalVisible(false)}
          onAction={handleAction}
        />
 
-       {/* NOVO MODAL DE STATUS (Feedback/Confirmação) */}
        <StatusModal 
          visible={statusModal.visible}
          type={statusModal.type}
