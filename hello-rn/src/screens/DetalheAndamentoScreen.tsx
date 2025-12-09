@@ -3,17 +3,17 @@ import { View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Image, Ale
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, MapPin, Clock, Camera, Edit2, MoreVertical, User, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, MapPin, Clock, Camera, MoreVertical, User, CheckCircle, FileSignature } from 'lucide-react-native';
 import tw from 'twrnc';
 import * as ImagePicker from 'expo-image-picker';
-import { FileSignature } from 'lucide-react-native';
+import MapView, { PROVIDER_DEFAULT } from 'react-native-maps'; // Import do Mapa
 
 import api from '../services/api';
 import { AppNavigationProp, RootStackParamList } from '../types/navigation';
 import { ActionModal } from '../components/ActionModal';
 import { COLORS } from '../constants/theme';
-import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations'; 
-import { getVitimasLocais } from '../utils/vitimaStorage';
+import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
+import { getVitimasLocais } from '../utils/vitimaStorage'; // Import das vítimas locais
 
 // --- TIPAGEM ---
 interface Midia {
@@ -39,10 +39,15 @@ interface OcorrenciaFull {
     municipio?: { nome_municipio: string };
   };
   forma_acervo: { descricao: string };
+  
+  // Tipagem corrigida para incluir coordenadas
   localizacao?: {
     logradouro: string;
     referencia_logradouro: string;
+    latitude?: number;
+    longitude?: number;
   };
+
   midias: Midia[];
   vitimas: Array<{
     id_vitima: string;
@@ -59,16 +64,15 @@ interface OcorrenciaFull {
 
 const Tab = createMaterialTopTabNavigator();
 
-// --- COMPONENTES DAS ABAS ---
+// --- ABA GERAL (Com Assinatura) ---
 const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
+  // Procura assinatura nas mídias (baseado no nome do arquivo ou tipo)
   const assinatura = ocorrencia.midias.find(m => 
     m.url_caminho.toLowerCase().includes('assinatura')
   );
 
-
   return (
     <ScrollView style={tw`flex-1 bg-white p-5`}>
-      {/* Bloco de Informações */}
       <View style={tw`bg-white rounded-xl p-5 shadow-sm mb-5 border border-gray-100`}>
         <Text style={[tw`text-lg font-bold mb-4`, { color: COLORS.text }]}>Informações da Ocorrência</Text>
         
@@ -106,7 +110,7 @@ const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
       {/* Bloco de Assinatura */}
       <Text style={[tw`text-lg font-bold mb-3`, { color: COLORS.text }]}>Assinatura do Responsável</Text>
       
-      <View style={tw`bg-slate-50 rounded-xl border border-slate-200 overflow-hidden min-h-[150px] justify-center items-center`}>
+      <View style={tw`bg-slate-50 rounded-xl border border-slate-200 overflow-hidden min-h-[150px] justify-center items-center mb-10`}>
         {assinatura ? (
           <View style={tw`w-full h-48 bg-white`}>
              <Image 
@@ -133,6 +137,7 @@ const GeralTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
   );
 };
 
+// --- ABA MÍDIA ---
 const MidiaTab = ({ ocorrencia, onAddPress }: { ocorrencia: OcorrenciaFull, onAddPress: () => void }) => {
   return (
     <ScrollView style={tw`flex-1 bg-white p-5`}>
@@ -140,9 +145,6 @@ const MidiaTab = ({ ocorrencia, onAddPress }: { ocorrencia: OcorrenciaFull, onAd
         <Text style={[tw`text-lg font-bold`, { color: COLORS.text }]}>
           Evidências ({ocorrencia.midias.length} itens)
         </Text>
-        <TouchableOpacity>
-             <Text style={[tw`font-medium`, { color: COLORS.primary }]}>Selecionar</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={tw`flex-row flex-wrap justify-between`}>
@@ -167,6 +169,7 @@ const MidiaTab = ({ ocorrencia, onAddPress }: { ocorrencia: OcorrenciaFull, onAd
   );
 };
 
+// --- ABA VÍTIMAS ---
 const VitimasTab = ({ ocorrencia }: { ocorrencia: OcorrenciaFull }) => {
     const getBadgeStyle = (classificacao: string) => {
       switch(classificacao) {
@@ -227,32 +230,26 @@ export const DetalheAndamentoScreen = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Hook de Mutação
   const updateMutation = useUpdateStatusOcorrencia();
   const isFinalizing = updateMutation.isPending;
 
+  // Busca dados da API e mescla com Local
   const fetchDetalhes = async () => {
     try {
-      // 1. Busca os dados oficiais da API
       const response = await api.get(`/api/v3/ocorrencias/${id}`);
       const dadosApi = response.data;
-
-      // 2. Busca as vítimas salvas localmente
+      
       const vitimasLocais = await getVitimasLocais(id);
-
-      // 3. Mescla as listas (API + Local)
-      // Se a API retornar vitimas (array vazio ou com dados), juntamos com as locais
+      
       const listaCompletaVitimas = [
         ...(dadosApi.vitimas || []), 
         ...vitimasLocais
       ];
 
-      // 4. Atualiza o estado com a lista combinada
       setOcorrencia({
         ...dadosApi,
         vitimas: listaCompletaVitimas
       });
-
     } catch (error) {
       console.error(error);
       Alert.alert('Erro', 'Falha ao carregar detalhes.');
@@ -315,7 +312,6 @@ export const DetalheAndamentoScreen = () => {
     }
   };
 
-  // --- LÓGICA DE FINALIZAÇÃO ---
   const handleFinalizar = () => {
       Alert.alert(
           "Finalizar Ocorrência",
@@ -324,7 +320,6 @@ export const DetalheAndamentoScreen = () => {
             { text: "Cancelar", style: "cancel" }, 
             { 
               text: "Confirmar e Finalizar", 
-              // Estilo 'default' para iOS ficar azul, ou 'destructive' para vermelho.
               onPress: () => {
                 if (!ocorrencia) return;
                 
@@ -335,8 +330,6 @@ export const DetalheAndamentoScreen = () => {
                 }, {
                     onSuccess: () => {
                         Alert.alert("Sucesso", "Ocorrência finalizada!");
-                        // Volta para a lista. Como o status mudou, 
-                        // ela não aparecerá mais em "Em Andamento".
                         navigation.navigate('MinhasOcorrencias');
                     }
                 });
@@ -400,8 +393,29 @@ export const DetalheAndamentoScreen = () => {
                     {ocorrencia.bairro.nome_bairro}, {ocorrencia.bairro.municipio?.nome_municipio || 'PE'}
                 </Text>
             </View>
-            <View style={tw`w-16 h-16 bg-blue-100 rounded-xl border border-slate-200 items-center justify-center overflow-hidden shadow-sm`}>
-                 <MapPin size={24} color={COLORS.primary} fill={COLORS.primary} />
+
+            {/* MINI MAPA AQUI */}
+            <View style={tw`w-20 h-20 bg-blue-100 rounded-xl border border-slate-200 overflow-hidden shadow-sm`}>
+                 {ocorrencia.localizacao?.latitude && ocorrencia.localizacao?.longitude ? (
+                   <MapView
+                      provider={PROVIDER_DEFAULT}
+                      style={tw`w-full h-full`}
+                      initialRegion={{
+                        latitude: ocorrencia.localizacao.latitude,
+                        longitude: ocorrencia.localizacao.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      scrollEnabled={false}
+                      zoomEnabled={false}
+                      pitchEnabled={false}
+                      rotateEnabled={false}
+                   />
+                 ) : (
+                   <View style={tw`items-center justify-center flex-1`}>
+                      <MapPin size={24} color={COLORS.primary} fill={COLORS.primary} />
+                   </View>
+                 )}
             </View>
         </View>
       </View>

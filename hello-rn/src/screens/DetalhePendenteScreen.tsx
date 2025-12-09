@@ -9,6 +9,7 @@ import tw from 'twrnc';
 import api from '../services/api';
 import { RootStackParamList, AppNavigationProp } from '../types/navigation';
 import { useUpdateStatusOcorrencia } from '../hooks/useOcorrenciaMutations';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 
 type DetalhePendenteRouteProp = RouteProp<RootStackParamList, 'DetalhePendente'>;
 
@@ -258,28 +259,59 @@ export const DetalhePendenteScreen: React.FC = () => {
               <Text style={tw`font-bold text-[${COLORS.text}] text-base`}>Localização</Text>
           </View>
 
-          {/* "Mapa" Visual (Placeholder clicável) */}
-          <TouchableOpacity 
-              style={tw`h-40 bg-slate-100 relative items-center justify-center`}
-              onPress={handleNavegarMapa}
-              activeOpacity={0.9}
-          >
-              {/* Imagem de fundo simulando mapa (opcional, ou use um bg-color sólido) */}
-              {/* <Image source={require('...')} style={tw`absolute inset-0 w-full h-full opacity-50`} /> */}
-              
-              {/* Pin Centralizado */}
-              <View style={tw`items-center`}>
-                  <MapPin size={32} color={COLORS.danger} fill={COLORS.danger} />
-                  <View style={tw`w-2 h-1 bg-black/20 rounded-full mt-1`} />
-              </View>
+          {/* MAPA REAL ou PLACEHOLDER */}
+          {ocorrencia.localizacao?.latitude && ocorrencia.localizacao?.longitude ? (
+            <View style={tw`h-48 w-full relative`}>
+              <MapView
+                style={tw`flex-1`}
+                provider={PROVIDER_DEFAULT} // Usa Apple Maps no iOS e Google no Android
+                initialRegion={{
+                  latitude: ocorrencia.localizacao.latitude,
+                  longitude: ocorrencia.localizacao.longitude,
+                  latitudeDelta: 0.005, // Zoom level (quanto menor, mais zoom)
+                  longitudeDelta: 0.005,
+                }}
+                scrollEnabled={false} // Deixa estático para não atrapalhar o scroll da tela
+                zoomEnabled={false}
+                onPress={handleNavegarMapa} // Clicar no mapa abre o GPS externo
+              >
+                <Marker 
+                  coordinate={{
+                    latitude: ocorrencia.localizacao.latitude,
+                    longitude: ocorrencia.localizacao.longitude,
+                  }}
+                  title="Local da Ocorrência"
+                >
+                  {/* Custom Marker (Opcional) */}
+                  <View style={tw`items-center`}>
+                     <MapPin size={40} color={COLORS.danger} fill={COLORS.danger} />
+                  </View>
+                </Marker>
+              </MapView>
               
               {/* Botão flutuante sobre o mapa */}
-              <View style={tw`absolute bottom-3 right-3 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200`}>
-                  <Text style={tw`text-xs font-bold text-[${COLORS.primary}]`}>Abrir GPS</Text>
-              </View>
-          </TouchableOpacity>
+              <TouchableOpacity 
+                  style={tw`absolute bottom-3 right-3 bg-white/90 px-3 py-1.5 rounded-lg shadow-sm border border-gray-200`}
+                  onPress={handleNavegarMapa}
+              >
+                  <Text style={tw`text-xs font-bold text-[${COLORS.primary}]`}>Navegar (GPS)</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* Fallback se não tiver coordenadas (mantém o visual antigo) */
+            <TouchableOpacity 
+                style={tw`h-40 bg-slate-100 relative items-center justify-center`}
+                onPress={handleNavegarMapa}
+                activeOpacity={0.9}
+            >
+                <View style={tw`items-center opacity-50`}>
+                    <MapPin size={40} color={COLORS.textLight} />
+                    <Text style={tw`text-xs font-bold text-slate-400 mt-2`}>Sem coordenadas de GPS</Text>
+                </View>
+            </TouchableOpacity>
+          )}
 
-          {/* Endereço em Texto */}
+          {/* Endereço em Texto (Mantido igual) */}
           <View style={tw`p-4 bg-white`}>
               <Text style={tw`text-base font-bold text-[${COLORS.text}] mb-1`}>
                   {ocorrencia.localizacao?.logradouro || 'Logradouro não informado'}
@@ -297,7 +329,7 @@ export const DetalhePendenteScreen: React.FC = () => {
               )}
           </View>
       </View>
-
+      
       </ScrollView>
 
       {/* --- FOOTER (Botão Fixo) --- */}
