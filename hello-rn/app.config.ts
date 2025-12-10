@@ -24,14 +24,25 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff"
-    }
+    },
+    package: "com.viczambom.soro"
   },
   web: {
     favicon: "./assets/favicon.png"
   },
 
   extra: {
+    eas: {
+      projectId: "5ed2bd32-1503-4498-9afd-55824bc7f0dd"
+    },
+
     apiUrl: process.env.API_URL || 'https://api-bombeiros-s-o-r-o.onrender.com',
     ...config.extra, // Preserva outros extras se existirem
   },
+  updates: {
+    url: "https://u.expo.dev/5ed2bd32-1503-4498-9afd-55824bc7f0dd"
+  },
+  runtimeVersion: {
+    policy: "appVersion"
+  }
 });
