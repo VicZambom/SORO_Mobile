@@ -116,9 +116,10 @@ yarn install
 3. **Configuração de Ambiente:**
 O projeto utiliza o arquivo `app.config.ts` para gerenciar variáveis de ambiente. Por padrão, a aplicação aponta para a API de produção hospedada no Render.
 Para desenvolvimento local ou testes, você pode alterar a propriedade `extra.apiUrl` diretamente em `app.config.ts`.
-URL da API (Produção): https://api-bombeiros-s-o-r-o.onrender.com
 
-4. **Execute o projeto:**
+- URL da API (Produção): https://api-bombeiros-s-o-r-o.onrender.com
+
+5. **Execute o projeto:**
 ```bash
 npx expo start
 
