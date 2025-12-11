@@ -18,9 +18,9 @@ Para testar a aplicação imediatamente em seu dispositivo móvel (Android ou iO
 ### 🤖 Download (Android)
 Para instalar a versão compilada (APK) diretamente em seu dispositivo Android, acesse nossa página de lançamentos (Releases):
 
-[**⬇️ Clique aqui para baixar a versão mais recente**](sha256:ea60e24772c166d733daa36aa54ec6501015c634f3fa9173129d56a50ae57be4)
+[**⬇️ Clique aqui para baixar a versão mais recente**](https://github.com/VicZambom/SORO_Mobile/releases/download/V1.0.0/SoroApp.apk)
 
-Ao clicar, procure pelo arquivo `SoroApp.apk` na lista de Assets.
+Ao clicar, o download do arquivo `SoroApp.apk` será iniciado.
 
 > **Nota:** Certifique-se de permitir a instalação de fontes desconhecidas nas configurações do seu dispositivo.
 
