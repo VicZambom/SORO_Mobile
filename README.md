@@ -119,7 +119,7 @@ Para desenvolvimento local ou testes, você pode alterar a propriedade `extra.ap
 
 - URL da API (Produção): https://api-bombeiros-s-o-r-o.onrender.com
 
-5. **Execute o projeto:**
+4. **Execute o projeto:**
 ```bash
 npx expo start
 
